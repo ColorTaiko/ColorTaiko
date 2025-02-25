@@ -68,89 +68,61 @@ function App() {
   const [welcomeMessage, setWelcomeMessage] = useState(false);
   const [Percent100Message, setPercent100Message] = useState(false);
 
+  const [history, setHistory] = useState([{
+    connections: [],
+    connectionPairs: [],
+    connectionGroups: [],
+    topRowCount: 1,
+    bottomRowCount: 1,
+    edgeState: null,
+    groupMap: new Map(),
+    topOrientationMap: new Map(),
+    botOrientationMap: new Map()
+  }]);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const saveToHistory = () => {
+    // Create deep copies of all necessary state
+    const newState = {
+      connections: JSON.parse(JSON.stringify(connections)),
+      connectionPairs: JSON.parse(JSON.stringify(connectionPairs)),
+      connectionGroups: JSON.parse(JSON.stringify(connectionGroups)),
+      topRowCount,
+      bottomRowCount,
+      edgeState,
+      groupMap: new Map(groupMapRef.current),
+      topOrientationMap: new Map(topOrientation.current),
+      botOrientationMap: new Map(botOrientation.current)
+    };
+    
+    setHistory([...history, newState]);
+    //setHistory((prevHistory) => [...prevHistory.slice(0, currentStep + 1), newState]);
+
+    setCurrentStep(currentStep + 1);
+  };
+
 
   const handleUndo = () => {
-    if (connectionPairs.length === 0) return;
-  
-    // Get the last connection pair
-    const lastConnectionPair = connectionPairs[connectionPairs.length - 1];
-    
-    if (lastConnectionPair.length === 1) {
-      // If the last pair has only one connection, remove it completely
-      setConnectionPairs(prev => prev.slice(0, -1));
-      setConnections(prev => prev.slice(0, -1));
-      setEdgeState(null);
-    } else if (lastConnectionPair.length === 2) {
-      // If the last pair has two connections, remove only the last connection
-      const updatedConnectionPairs = [
-        ...connectionPairs.slice(0, -1),
-        [lastConnectionPair[0]]
-      ];
+    if (currentStep > 0) {
+      const previousState = history[currentStep];
       
-      setConnectionPairs(updatedConnectionPairs);
+      // Restore all state variables
+      setConnections(previousState.connections);
+      setConnectionPairs(previousState.connectionPairs);
+      setConnectionGroups(previousState.connectionGroups);
+      setTopRowCount(previousState.topRowCount);
+      setBottomRowCount(previousState.bottomRowCount);
+      setEdgeState(previousState.edgeState);
       
-      // Remove the last connection from connections
-      setConnections(prev => prev.slice(0, -1));
+      // Restore ref values
+      groupMapRef.current = new Map(previousState.groupMap);
+      topOrientation.current = new Map(previousState.topOrientationMap);
+      botOrientation.current = new Map(previousState.botOrientationMap);
       
-      // Restore the edge state to the first connection in the pair
-      setEdgeState(lastConnectionPair[0]);
-      
-      // Reset orientation and group maps for the removed connection
-      const nodes = lastConnectionPair[1].nodes;
-      const topCombination = nodes
-        .filter(node => node.startsWith('top'))
-        .sort()
-        .join(',');
-      const bottomCombination = nodes
-        .filter(node => node.startsWith('bottom'))
-        .sort()
-        .join(',');
-  
-      // Remove orientation for this specific combination
-      topOrientation.current.delete(topCombination);
-      botOrientation.current.delete(bottomCombination);
-  
-      // Remove the corresponding group from groupMapRef
-      groupMapRef.current.delete(topCombination);
+      // delete the last snapshot from history array, and update index
+      setHistory(prev => prev.slice(0, -1))
+      setCurrentStep(currentStep - 1);
     }
-  
-    // Recalculate connection groups
-    setConnectionGroups(prevGroups => {
-      // Remove the last group or modify as needed
-      return prevGroups.slice(0, -1);
-    });
-  
-    // Reduce node rows if necessary
-    const checkReduceNodes = () => {
-      const currentTopNodes = new Set(
-        connections.flatMap(conn => 
-          conn.nodes.filter(node => node.startsWith('top'))
-        )
-      );
-      const currentBottomNodes = new Set(
-        connections.flatMap(conn => 
-          conn.nodes.filter(node => node.startsWith('bottom'))
-        )
-      );
-  
-      const maxTopNodeIndex = Math.max(
-        ...[...currentTopNodes].map(node => 
-          parseInt(node.split('-')[1])
-        ),
-        -1
-      );
-      const maxBottomNodeIndex = Math.max(
-        ...[...currentBottomNodes].map(node => 
-          parseInt(node.split('-')[1])
-        ),
-        -1
-      );
-  
-      setTopRowCount(Math.max(maxTopNodeIndex + 1, 1));
-      setBottomRowCount(Math.max(maxBottomNodeIndex + 1, 1));
-    };
-  
-    checkReduceNodes();
   };
 
   /**
@@ -437,6 +409,19 @@ function App() {
     topOrientation.current.clear();
     botOrientation.current.clear();
     console.log(connectionPairs);
+
+    setHistory([{
+      connections: [],
+      connectionPairs: [],
+      connectionGroups: [],
+      topRowCount: 1,
+      bottomRowCount: 1,
+      edgeState: null,
+      groupMap: new Map(),
+      topOrientationMap: new Map(),
+      botOrientationMap: new Map()
+    }]);
+    setCurrentStep(0);
   };
 
   const handleSoundClick = () => {
@@ -510,6 +495,8 @@ function App() {
       return;
     }
 
+    saveToHistory();
+    
     let newColor;
     if (edgeState) {
       // If there is a pending edge, use the same color and create a pair
