@@ -5,7 +5,7 @@
  * @param {Array} connectionPairs - Array of connection pairs to be drawn with curved paths.
  * @param {number} offset - Distance to offset connection lines from node centers.
  */
-export const drawConnections = (svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, arrowOptions = { color: "red", size: 10 }) => {
+export const drawConnections = (svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, arrowOptions = { color: "red", size: 10 }, horiEdgesRef) => {
   if (!svgRef.current) return;
 
   // Clear existing connections by removing all child elements of the SVG
@@ -99,10 +99,65 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
     
       const topCombination = [top1, top2].sort().join(',');
       const bottomCombination = [bottom1, bottom2].sort().join(',');
-
       const topDirection = topOrientation.current.get(topCombination);
       const bottomDirection = botOrientation.current.get(bottomCombination);
 
+      // new horizontal edge: [start, end, color]
+      // Chris & Yixu were here :p
+      let horiEdgeTop = [top1, top2, color];
+      let horiEdgeBottom = [bottom1, bottom2, color];
+      console.log("Updated new horizontal edges: ", horiEdgeTop, horiEdgeBottom)
+      if (horiEdgesRef && horiEdgesRef.current) {
+        // horiEdgesRef map:
+        // for all horizontal edge top1 -> top 2 of color ColorA
+        // for all horizontal edge top3 -> top 1 of color ColorB
+        // horiEdgesRef = {top1: [ map[top2 : ColorA], map[top3 : ColorB] ] }
+
+        // console.log("topIndex = ", topIndex)
+        
+        // if (topIndex !== -1) { // reset connection color if top1/top2 already in dictionary
+         // top1 is in the horizontal edges map
+        if (horiEdgesRef.current.has(top1) === 1) {
+          if (horiEdgesRef.current.get(top1)[0].has(top2)) { // if top2 connection already exists
+            if (color === horiEdgesRef.current.get(top1)[0].get(top2)) {
+              console.log("Top case: Fold found at", top1, " ", top2)
+            } else {
+              horiEdgesRef.current.get(top1)[0].set(top2, color)
+              // add recursive function after resetting the color
+            }
+          } else {
+            horiEdgesRef.current.get(top1)[0].set(top2, color)
+            // no need to check for recursive case
+          }
+        } else { // add new vertex to map
+          // console.log("I should be here!")
+          // horiEdgesRef.current.push(horiEdgeTop);
+          // initialize outgoing/incoming arrays:
+          horiEdgesRef.current.set(top1, [new Map([[top2, color]]), new Map()]) // set top1 vertex outgoing // horiEdgeTop.splice(0,1)
+        }
+        // top2 is in the horizontal edges map
+        if (horiEdgesRef.current.has(top2) === 1) { 
+          if (horiEdgesRef.current.get(top2)[1].has(top1)) { // if top1 connection already exists
+            if (color === horiEdgesRef.current.get(top2)[1].get(top1)) {
+              console.log("Bottom case: Fold found at", top1, " ", top2)
+            } else {
+              horiEdgesRef.current.get(top2)[1].set(top1, color)
+              // add recursive function after resetting the color
+            }
+          } else {
+            horiEdgesRef.current.set(top2, [new Map(), new Map([[top1, color]])]) // set top2 vertex incoming // horiEdgeTop.splice(1,1)
+          }
+        } else { // add new vertex to map
+          // console.log("I should be here!")
+          // horiEdgesRef.current.push(horiEdgeTop);
+          // initialize outgoing/incoming arrays:
+          horiEdgesRef.current.set(top2, [new Map(), new Map([[top1, color]])]) // set top2 vertex incoming // horiEdgeTop.splice(1,1)
+        }
+      }
+      console.log("February 28 Update: ")
+      console.log(horiEdgesRef)
+      console.log("horiEdges list: ", horiEdgesRef.current);
+      
       /**
        * Generates an SVG path for a curved connection between two nodes.
        * @param {string} startNode - ID of the starting node.

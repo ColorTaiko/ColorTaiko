@@ -38,6 +38,7 @@ function App() {
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
+  const horiEdgesRef = useRef(new Map());
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [startNode, setStartNode] = useState(null);
@@ -167,7 +168,12 @@ function App() {
    * Draws connections on the SVG element when related state changes.
    */
   useEffect(() => {
-    drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation);
+    drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, { color: "red", size: 10 },
+      horiEdgesRef);
+    console.log("Hello");
+    console.log("connections: ", connections);
+    console.log("connection pairs: ", connectionPairs);
+    console.log("connection groups: ", connectionGroups);
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);
 
   /**
