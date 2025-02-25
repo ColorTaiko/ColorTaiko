@@ -170,10 +170,10 @@ function App() {
   useEffect(() => {
     drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, { color: "red", size: 10 },
       horiEdgesRef);
-    console.log("Hello");
-    console.log("connections: ", connections);
-    console.log("connection pairs: ", connectionPairs);
-    console.log("connection groups: ", connectionGroups);
+    // console.log("Hello");
+    // console.log("connections: ", connections);
+    // console.log("connection pairs: ", connectionPairs);
+    // console.log("connection groups: ", connectionGroups);
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);
 
   /**
@@ -293,9 +293,9 @@ function App() {
         setConnections
       );
     }
-    console.log("topOrientation",topOrientation);
-    console.log("botOrientation",botOrientation);
-    console.log("groupMapRef",groupMapRef);
+    // console.log("topOrientation",topOrientation);
+    // console.log("botOrientation",botOrientation);
+    // console.log("groupMapRef",groupMapRef);
   }, [connectionPairs]);
 
   // useEffect(() => {
