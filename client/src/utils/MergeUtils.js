@@ -22,7 +22,19 @@ export const checkAndGroupConnections = (
       matchingGroups.push(groupBottom);
     }
     if (groupTop && groupTop !== groupBottom) matchingGroups.push(groupTop);
-  
+
+    // force update in connection when groupMapRef gets updated
+    const updateConnectionColorInConnections = (targetConnection, newColor) => {
+      connections.forEach((conn) => {
+        if (
+          (conn.nodes[0] === targetConnection.nodes[0] && conn.nodes[1] === targetConnection.nodes[1]) ||
+          (conn.nodes[0] === targetConnection.nodes[1] && conn.nodes[1] === targetConnection.nodes[0])
+        ) {
+          conn.color = newColor;
+        }
+      });
+    };
+   
     //console.log('Matching Groups:', matchingGroups);
     let mergedGroup = null;
     if (matchingGroups.length > 0) {
@@ -30,6 +42,7 @@ export const checkAndGroupConnections = (
   
       newPair.forEach((connection) => {
         connection.color = mergedGroup.color;
+        updateConnectionColorInConnections(connection, mergedGroup.color);
         if (!mergedGroup.pairs.includes(connection)) {
           mergedGroup.pairs.push(connection);
         }
@@ -43,6 +56,7 @@ export const checkAndGroupConnections = (
         const groupToMerge = matchingGroups[1];
         groupToMerge.pairs.forEach((connection) => {
           connection.color = mergedGroup.color;
+          updateConnectionColorInConnections(connection, mergedGroup.color);
         });
         mergedGroup.nodes = Array.from(
           new Set([...mergedGroup.nodes, ...groupToMerge.nodes])
@@ -67,7 +81,10 @@ export const checkAndGroupConnections = (
       //console.log('GroupMap', groupMapRef.current);
     } else {
       const groupColor = firstConnection.color;
-      newPair.forEach((connection) => (connection.color = groupColor));
+      newPair.forEach((connection) => {
+        connection.color = groupColor;
+        updateConnectionColorInConnections(connection, groupColor);
+      });
   
       const newGroup = {
         nodes: [top1, top2, bottom1, bottom2],
