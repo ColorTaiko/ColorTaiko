@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-
+import { PatternChecker } from "./utils/PatternChecker";
 import { generateColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
 import { checkAndGroupConnections } from "./utils/MergeUtils";
@@ -67,7 +67,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState(false);
   const [Percent100Message, setPercent100Message] = useState(false);
-
+  const [patternChecker] = useState(() => new PatternChecker()); // Initialize PatternChecker.
 
   const handleUndo = () => {
     if (connectionPairs.length === 0) return;
@@ -457,7 +457,38 @@ function App() {
   const toggleLightMode = () => {
     setLightMode((prevMode) => !prevMode);
   };
+  
+  // Getter functions for PatternChecker.
+  const getHorizontalConnections = (point) => {
+    return connections.filter(conn =>
+      conn.nodes.includes(point) &&
+      conn.nodes.every(node => node.startsWith(point.split('-')[0]))
+    ).flatMap(conn => conn.nodes.filter(node => node !== point));
+  };
 
+  const getNextPoint = (point) => {
+    const [row, index] = point.split('-');
+    const nextIndex = parseInt(index) + 1;
+    return `${row}-${nextIndex}` in Array.from({ length: topRowCount }, (_, i) => `top-${i}`).concat(Array.from({ length: bottomRowCount }, (_, i) => `bottom-${i}`)) ? `${row}-${nextIndex}` : null;
+  };
+
+  const getPreviousPoint = (point) => {
+    const [row, index] = point.split('-');
+    const prevIndex = parseInt(index) - 1;
+    return prevIndex >= 0 ? `${row}-${prevIndex}` : null;
+  };
+
+  const getConnectionColor = (pt1, pt2) => {
+    return connections.find(conn =>
+      conn.nodes.includes(pt1) && conn.nodes.includes(pt2)
+    )?.color;
+  };
+
+  const getConnectionOrientation = (pt1, pt2) => {
+    const [row1] = pt1.split('-');
+    const [row2] = pt2.split('-');
+    return row1 === row2 ? 'horizontal' : 'vertical';
+  };
 
   const tryConnect = (nodes) => {
     if (nodes.length !== 2) return;
@@ -510,47 +541,56 @@ function App() {
       return;
     }
 
-    let newColor;
-    if (edgeState) {
-      // If there is a pending edge, use the same color and create a pair
-      newColor = edgeState.color;
-      const newConnection = {
-        nodes: [node1, node2],
-        color: newColor,
-      };
-      setConnections([...connections, newConnection]);
-      setConnectionPairs((prevPairs) => {
-        const lastPair = prevPairs[prevPairs.length - 1];
-        let updatedPairs;
-        if (lastPair && lastPair.length === 1) {
-          // If the last pair has one connection, complete it
-          updatedPairs = [
-            ...prevPairs.slice(0, -1),
-            [...lastPair, newConnection],
-          ];
-        } else {
-          // Otherwise, create a new pair
-          updatedPairs = [...prevPairs, [edgeState, newConnection]];
-        }
-        return updatedPairs;
+    // Pattern Checking
+    try {
+      patternChecker.checkAndUpdatePatterns([[node1, node2]], {
+        getHorizontalConnections,
+        getNextPoint,
+        getPreviousPoint,
+        getConnectionColor,
+        getConnectionOrientation
       });
-      //.log(connectionPairs);
-      setEdgeState(null);
-    } else {
-      // If no pending edge, create a new edge and add to edgeState
-      newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
-      //console.log("newColor: ", newColor);
-      //console.log(newColor);
-      const newConnection = {
-        nodes: [node1, node2],
-        color: newColor,
-      };
-      setConnections([...connections, newConnection]);
-      // Create a new pair and add to the connection pairs
-      setConnectionPairs([...connectionPairs, [newConnection]]);
-      setEdgeState(newConnection);
+
+      let newColor;
+      if (edgeState) {
+        newColor = edgeState.color;
+        const newConnection = {
+          nodes: [node1, node2],
+          color: newColor,
+        };
+        setConnections([...connections, newConnection]);
+        setConnectionPairs((prevPairs) => {
+          const lastPair = prevPairs[prevPairs.length - 1];
+          let updatedPairs;
+          if (lastPair && lastPair.length === 1) {
+            updatedPairs = [
+              ...prevPairs.slice(0, -1),
+              [...lastPair, newConnection],
+            ];
+          } else {
+            updatedPairs = [...prevPairs, [edgeState, newConnection]];
+          }
+          return updatedPairs;
+        });
+        setEdgeState(null);
+      } else {
+        newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
+        const newConnection = {
+          nodes: [node1, node2],
+          color: newColor,
+        };
+        setConnections([...connections, newConnection]);
+        setConnectionPairs([...connectionPairs, [newConnection]]);
+        setEdgeState(newConnection);
+      }
+      setSelectedNodes([]);
+    } catch (error) {
+      if (soundBool) {
+        errorAudio.play();
+      }
+      setErrorMessage(error.message);
+      setSelectedNodes([]);
     }
-    setSelectedNodes([]);
   };
   
 
