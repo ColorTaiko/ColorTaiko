@@ -140,25 +140,23 @@ function App() {
       setTopRowCount(stateToRestore.topRowCount);
       setBottomRowCount(stateToRestore.bottomRowCount);
       setEdgeState(stateToRestore.edgeState);
-      setCurrentColor(stateToRestore.currentColor);
       setConnectionGroups(stateToRestore.connectionGroups);
 
       // Now, re-run merge logic on each complete connection pair so that
       // the colors (including vertical edge colors) are correctly updated.
-      stateToRestore.connections.forEach((conn) => {
-        const pairEquivalent = connectionPairs.find((pair) =>
-          pair.some(
-            (pConn) =>
-              JSON.stringify(pConn.nodes.sort()) ===
-              JSON.stringify(conn.nodes.sort())
-          )
-        );
-        if (pairEquivalent) {
-          conn.color = pairEquivalent[1].color;
-        }
-      });
+      // stateToRestore.connections.forEach((conn) => {
+      //   const pairEquivalent = connectionPairs.find((pair) =>
+      //     pair.some(
+      //       (pConn) =>
+      //         JSON.stringify(pConn.nodes.sort()) ===
+      //         JSON.stringify(conn.nodes.sort())
+      //     )
+      //   );
+      //   if (pairEquivalent) {
+      //     conn.color = pairEquivalent[1].color;
+      //   }
+      // });
       setConnections(stateToRestore.connections);
-
       stateToRestore.connectionPairs.forEach((pair) => {
         if (pair.length === 2) {
           checkAndGroupConnections(
