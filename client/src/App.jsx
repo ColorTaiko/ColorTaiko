@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 
 import { generateColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
+import { updateHorizontalEdges } from "./utils/drawingUtils";
 import { checkAndGroupConnections } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes} from "./utils/checkAndAddNewNodes";
@@ -174,6 +175,8 @@ function App() {
     // console.log("connections: ", connections);
     // console.log("connection pairs: ", connectionPairs);
     // console.log("connection groups: ", connectionGroups);
+    // checkNoFold(svgRef, connections, connectionPairs, topOrientation, botOrientation, horiEdgesRef);
+    // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);
 
   /**
@@ -276,7 +279,7 @@ function App() {
 
     if (latestPair && latestPair.length === 2) {
       if(level === "Level 2") {
-        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation);
+        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, horiEdgesRef);
         if(a == -1){
           setErrorMessage("Orientation condition failed!");
           setSelectedNodes([]);
@@ -292,7 +295,12 @@ function App() {
         connections,
         setConnections
       );
+
+      // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
+      // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
+    console.log("updated")
+    updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     // console.log("topOrientation",topOrientation);
     // console.log("botOrientation",botOrientation);
     // console.log("groupMapRef",groupMapRef);

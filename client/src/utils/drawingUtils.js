@@ -104,78 +104,80 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
       const topDirection = topOrientation.current.get(topCombination);
       const bottomDirection = botOrientation.current.get(bottomCombination);
 
+
+      // updateHorizontalEdges(top1, top2, bottom1, bottom2, color, horiEdgesRef);
       // new horizontal edge: [start, end, color]
       // Chris & Yixu were here
       // start here
-      let horiEdgeTop = [top1, top2, color];
-      let horiEdgeBottom = [bottom1, bottom2, color];
-      console.log("Updated new horizontal edges: ", horiEdgeTop, horiEdgeBottom)
+      // let horiEdgeTop = [top1, top2, color];
+      // let horiEdgeBottom = [bottom1, bottom2, color];
+      // console.log("Updated new horizontal edges: ", horiEdgeTop, horiEdgeBottom)
       
-      let a = [top1, bottom1]
-      let b = [top2, bottom2]
-      for (let i = 0; i < 2; i += 1) {
-        let ai = a[i]
-        let bi = b[i]
-        if (horiEdgesRef && horiEdgesRef.current) {
-          // horiEdgesRef map:
-          // for all horizontal edge top1 -> top 2 of color ColorA
-          // for all horizontal edge top3 -> top 1 of color ColorB
-          // horiEdgesRef = {top1: [ map[top2 : ColorA], map[top3 : ColorB] ] }
-          // added 2/23/25
-          // horiEdgesRef = {top1: [ map[ColorA : top2], map[ColorB : top3] ] }
+      // let a = [top1, bottom1]
+      // let b = [top2, bottom2]
+      // for (let i = 0; i < 2; i += 1) {
+      //   let ai = a[i]
+      //   let bi = b[i]
+      //   if (horiEdgesRef && horiEdgesRef.current) {
+      //     // horiEdgesRef map:
+      //     // for all horizontal edge top1 -> top 2 of color ColorA
+      //     // for all horizontal edge top3 -> top 1 of color ColorB
+      //     // horiEdgesRef = {top1: [ map[top2 : ColorA], map[top3 : ColorB] ] }
+      //     // added 2/23/25
+      //     // horiEdgesRef = {top1: [ map[ColorA : top2], map[ColorB : top3] ] }
 
-          // console.log("topIndex = ", topIndex)
-          let foldFound = false;
-          if (horiEdgesRef.current.has(ai) == true) {
-            // first check if we're resetting the color
-            if (horiEdgesRef.current.get(ai)[0].get(color) != color) {
-              // we reset, then we must check if the new outgoing edge creates a fold from top1
-              horiEdgesRef.current.get(ai)[0].set(bi, color)
-              // check to see if top1 has an outgoing edge of that color first
-              if (horiEdgesRef.current.get(ai)[0].has(color) == false) {
-                // we don't have an outgoing edge of this color, so we can log this outgoing color
-                let oldColor = horiEdgesRef.current.get(ai)[0].get(bi)
-                // since we're resetting the color of an old connection, remove 
-                // the old connection's color from the map
-                horiEdgesRef.current.get(ai)[0].delete(oldColor) 
-                horiEdgesRef.current.get(ai)[0].set(color, bi)
-              } else if (horiEdgesRef.current.get(ai)[0].get(color) != bi) { // else -> this means top1 already has an edge of that color, meaning we found a fold
-                console.log("1: Fold found at", ai, " ", bi)
-                alert("Top: Fold found at", ai, " ", bi)
-                foldFound = true;
-              }
-            } else {
-              horiEdgesRef.current.get(ai)[0].set(color, bi)
-              horiEdgesRef.current.get(ai)[0].set(bi, color)
-            }
-          } else { 
-            horiEdgesRef.current.set(ai, [new Map([[bi, color]]), new Map()]) // set top1 vertex outgoing // horiEdgeTop.splice(0,1)
-            horiEdgesRef.current.get(ai)[0].set(color, bi)
-          }
-          if (horiEdgesRef.current.has(bi) == true) { 
-            if (horiEdgesRef.current.get(ai)[0].get(color) != color) {
-              horiEdgesRef.current.get(bi)[1].set(ai, color)
-              if (horiEdgesRef.current.get(bi)[1].has(color) == false) {
-                let oldColor = horiEdgesRef.current.get(bi)[1].get(ai)
-                horiEdgesRef.current.get(bi)[1].delete(oldColor) 
-                horiEdgesRef.current.get(bi)[1].set(color, ai)
-              } else if (horiEdgesRef.current.get(bi)[1].get(color) != ai) { // else -> this means top1 already has an edge of that color, meaning we found a fold
-                console.log("2: Fold found at", bi, " ", ai)
-                if (foldFound == false) {
-                  alert("Bottom: Fold found at", ai, " ", bi)
-                }
-              }
-            } else {
-              horiEdgesRef.current.get(bi)[1].set(color, ai)
-              horiEdgesRef.current.get(bi)[1].set(bi, color)
-            }
-          } else { 
-            horiEdgesRef.current.set(bi, [new Map(), new Map([[ai, color]])])
-            horiEdgesRef.current.get(bi)[1].set(color, ai)
-          }
-        }
-      }
-      console.log("horiEdges list: ", horiEdgesRef.current);
+      //     // console.log("topIndex = ", topIndex)
+      //     let foldFound = false;
+      //     if (horiEdgesRef.current.has(ai) == true) {
+      //       // first check if we're resetting the color
+      //       if (horiEdgesRef.current.get(ai)[0].get(color) != color) {
+      //         // we reset, then we must check if the new outgoing edge creates a fold from top1
+      //         horiEdgesRef.current.get(ai)[0].set(bi, color)
+      //         // check to see if top1 has an outgoing edge of that color first
+      //         if (horiEdgesRef.current.get(ai)[0].has(color) == false) {
+      //           // we don't have an outgoing edge of this color, so we can log this outgoing color
+      //           let oldColor = horiEdgesRef.current.get(ai)[0].get(bi)
+      //           // since we're resetting the color of an old connection, remove 
+      //           // the old connection's color from the map
+      //           horiEdgesRef.current.get(ai)[0].delete(oldColor) 
+      //           horiEdgesRef.current.get(ai)[0].set(color, bi)
+      //         } else if (horiEdgesRef.current.get(ai)[0].get(color) != bi) { // else -> this means top1 already has an edge of that color, meaning we found a fold
+      //           console.log("1: Fold found at", ai, " ", bi)
+      //           alert("Top: Fold found at", ai, " ", bi)
+      //           foldFound = true;
+      //         }
+      //       } else {
+      //         horiEdgesRef.current.get(ai)[0].set(color, bi)
+      //         horiEdgesRef.current.get(ai)[0].set(bi, color)
+      //       }
+      //     } else { 
+      //       horiEdgesRef.current.set(ai, [new Map([[bi, color]]), new Map()]) // set top1 vertex outgoing // horiEdgeTop.splice(0,1)
+      //       horiEdgesRef.current.get(ai)[0].set(color, bi)
+      //     }
+      //     if (horiEdgesRef.current.has(bi) == true) { 
+      //       if (horiEdgesRef.current.get(ai)[0].get(color) != color) {
+      //         horiEdgesRef.current.get(bi)[1].set(ai, color)
+      //         if (horiEdgesRef.current.get(bi)[1].has(color) == false) {
+      //           let oldColor = horiEdgesRef.current.get(bi)[1].get(ai)
+      //           horiEdgesRef.current.get(bi)[1].delete(oldColor) 
+      //           horiEdgesRef.current.get(bi)[1].set(color, ai)
+      //         } else if (horiEdgesRef.current.get(bi)[1].get(color) != ai) { // else -> this means top1 already has an edge of that color, meaning we found a fold
+      //           console.log("2: Fold found at", bi, " ", ai)
+      //           if (foldFound == false) {
+      //             alert("Bottom: Fold found at", ai, " ", bi)
+      //           }
+      //         }
+      //       } else {
+      //         horiEdgesRef.current.get(bi)[1].set(color, ai)
+      //         horiEdgesRef.current.get(bi)[1].set(bi, color)
+      //       }
+      //     } else { 
+      //       horiEdgesRef.current.set(bi, [new Map(), new Map([[ai, color]])])
+      //       horiEdgesRef.current.get(bi)[1].set(color, ai)
+      //     }
+      //   }
+      // }
+      // console.log("horiEdges list: ", horiEdgesRef.current);
       
       // end here
       /**
@@ -285,3 +287,106 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
   
 };
 
+/**
+ * Updates horizontal edges between nodes.
+ * @param {string} top1 - The first top node.
+ * @param {string} top2 - The second top node.
+ * @param {string} bottom1 - The first bottom node.
+ * @param {string} bottom2 - The second bottom node.
+ * @param {string} color - The color for the connection.
+ * @param {Object} horiEdgesRef - Reference to the horizontal edges Map.
+ */
+var foldFound = 0;
+var foldFoundThisTurn = 0;
+
+export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientation, botOrientation) => {
+  connectionPairs.forEach((pair) => {
+    if (pair.length === 2) {
+      const [
+        {
+          nodes: [startNode1, bottomNode1],
+        },
+        {
+          nodes: [startNode2, bottomNode2],
+          color,
+        },
+      ] = pair;
+  
+      const [firstConnection, secondConnection] = pair;
+      const [top1, bottom1] = firstConnection.nodes;
+      const [top2, bottom2] = secondConnection.nodes;
+    
+      const topCombination = [top1, top2].sort().join(',');
+      const bottomCombination = [bottom1, bottom2].sort().join(',');
+      const topDirection = topOrientation.current.get(topCombination);
+      const bottomDirection = botOrientation.current.get(bottomCombination);
+  
+    let horiEdgeTop = [top1, top2, color];
+    let horiEdgeBottom = [bottom1, bottom2, color];
+    console.log("Updated new horizontal edges: ", horiEdgeTop, horiEdgeBottom);
+
+    let a = [top1, bottom1];
+    let b = [top2, bottom2];
+    for (let i = 0; i < 2; i += 1) { // check for a fold for top and bottom horizontal connections
+      let ai = a[i];
+      let bi = b[i];
+      if (horiEdgesRef && horiEdgesRef.current) {
+        // handle outgoing connections for nodeA:
+
+        // if we have made a connection with nodeA before
+        if (horiEdgesRef.current.has(ai)) { 
+          let colorMerged = 0;
+          // if nodeB is a seen node, and the color got merged
+          if (horiEdgesRef.current.get(ai)[0].get(bi) != color) { 
+            // delete the old color of nodeA -> nodeB
+            let oldColor = horiEdgesRef.current.get(ai)[0].get(bi);
+            horiEdgesRef.current.get(ai)[0].delete(oldColor);
+            colorMerged = 1;
+          } 
+          // set color of the connection, nodeA --[newColor]--> nodeB
+          horiEdgesRef.current.get(ai)[0].set(bi, color);
+          // newColor already exists in another outgoing connection
+          if ((!colorMerged || horiEdgesRef.current.get(ai)[0].has(color)) && horiEdgesRef.current.get(ai)[0].get(color) != bi) { 
+            console.log("1: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
+            alert("1: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
+          } else { // newColor is a new outgoing color for nodeA
+            horiEdgesRef.current.get(ai)[0].set(color, bi);
+          }
+        // nodeA is an unseen node, initialize its dictionaries
+        } else { 
+          horiEdgesRef.current.set(ai, [new Map([[bi, color]]), new Map()]);
+          horiEdgesRef.current.get(ai)[0].set(color, bi);
+        }
+
+        // handle incoming connections for nodeB
+
+        // if we have made a connection with nodeB before
+        if (horiEdgesRef.current.has(bi)) { 
+          // if nodeB is a seen node, and the color got merged
+          let colorMerged = 0;
+          if (horiEdgesRef.current.get(bi)[1].get(ai) != color) { 
+            // delete the old color of nodeA -> nodeB
+            let oldColor = horiEdgesRef.current.get(bi)[1].get(ai);
+            horiEdgesRef.current.get(bi)[1].delete(oldColor);
+            colorMerged = 1;
+          } 
+          // set color of the connection, nodeA --[newColor]--> nodeB
+          horiEdgesRef.current.get(bi)[1].set(ai, color);
+          // newColor already exists in another outgoing connection
+          if ((!colorMerged || horiEdgesRef.current.get(bi)[1].has(color)) && horiEdgesRef.current.get(bi)[1].get(color) != ai) { 
+            console.log("2: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
+            alert("2: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
+          } else { // newColor is a new outgoing color for nodeA
+            horiEdgesRef.current.get(bi)[1].set(color, ai);
+          }
+        // nodeA is an unseen node, initialize its dictionaries
+        } else { 
+          horiEdgesRef.current.set(bi, [new Map(), new Map([[ai, color]])]);
+          horiEdgesRef.current.get(bi)[1].set(color, ai);
+        }
+      }
+    }
+    console.log("horiEdges list: ", horiEdgesRef.current);
+  }
+  })
+};
