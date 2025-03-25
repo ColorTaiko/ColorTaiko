@@ -1,4 +1,4 @@
-export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrientation, horiEdgesRef) => {
+export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove) => {
     if (newPair.length !== 2) return;
 
     const [firstConnection, secondConnection] = newPair;
@@ -18,6 +18,9 @@ export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrient
     const top2 = getNodeNumber(top2_)
     const bottom1 = getNodeNumber(bottom1_)
     const bottom2 = getNodeNumber(bottom2_)
+
+
+    
 
     /*case 1
     */
@@ -67,6 +70,10 @@ export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrient
 
     /*case 4
     */
+
+    // flip triplet: [nodeA, nodeB, directionThatGetsFlipped]
+    // connectionsToFlip = []
+    flippedConnectionsPerMove.length = 0;
     if (topOrientation.current.get(topCombination) && botOrientation.current.get(bottomCombination)) {
         const topGroup = groupMapRef.current.get(topCombination);
         const bottomGroup = groupMapRef.current.get(bottomCombination);
@@ -87,44 +94,24 @@ export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrient
             if (topGroup === bottomGroup) {
                 return -1;
             }
-    
+            
             for (const combo of topGroup.combinations) {
+                const separator = ",";
+                const substrings = combo.split(separator, 2);
+
+                const topA = substrings[0];
+                const topB = substrings[1];
                 if (topOrientation.current.has(combo)) {
+                    console.log("flipping ", topA, " and ", topB)
                     const dir = topOrientation.current.get(combo);
-                    // if (horiEdgesRef && horiEdgesRef.current) {
-                    //     if (dir == "right") {
-                    //         let connColor = horiEdgesRef.current.get(top1)[0].get(top2);
-                    //         horiEdgesRef.current.get(top1)[0].delete(top2);
-                    //         horiEdgesRef.current.get(top2)[1].delete(top1);
-                    //         horiEdgesRef.current.get(top2)[0].set(top1, connColor);
-                    //         horiEdgesRef.current.get(top1)[1].set(top2, connColor);
-                    //     } else if (dir == "left") {
-                    //         let connColor = horiEdgesRef.current.get(top1)[1].get(top2);
-                    //         horiEdgesRef.current.get(top1)[1].delete(top2);
-                    //         horiEdgesRef.current.get(top2)[0].delete(top1);
-                    //         horiEdgesRef.current.get(top2)[1].set(top1, connColor);
-                    //         horiEdgesRef.current.get(top1)[0].set(top2, connColor);
-                    //     }
-                    // }
+                    flippedConnectionsPerMove.push([topA, topB, dir]);
                     topOrientation.current.set(combo, dir === "right" ? "left" : "right");
+
                 }
                 if (botOrientation.current.has(combo)) {
+                    console.log("flipping ", topA, " and ", topB)
                     const dir = botOrientation.current.get(combo);
-                    // if (horiEdgesRef && horiEdgesRef.current) {
-                    //     if (dir == "right") {
-                    //         let connColor = horiEdgesRef.current.get(bottom1)[0].get(bottom2);
-                    //         horiEdgesRef.current.get(bottom1)[0].delete(bottom2);
-                    //         horiEdgesRef.current.get(bottom2)[1].delete(bottom1);
-                    //         horiEdgesRef.current.get(bottom2)[0].set(bottom1, connColor);
-                    //         horiEdgesRef.current.get(bottom1)[1].set(bottom2, connColor);
-                    //     } else if (dir == "left") {
-                    //         let connColor = horiEdgesRef.current.get(bottom1)[1].get(bottom2);
-                    //         horiEdgesRef.current.get(bottom1)[1].delete(bottom2);
-                    //         horiEdgesRef.current.get(bottom2)[0].delete(bottom1);
-                    //         horiEdgesRef.current.get(bottom2)[1].set(bottom1, connColor);
-                    //         horiEdgesRef.current.get(bottom1)[0].set(bottom2, connColor);
-                    //     }
-                    // }
+                    flippedConnectionsPerMove.push([topA, topB, dir]);
                     botOrientation.current.set(combo, dir === "right" ? "left" : "right");
                 }
             }

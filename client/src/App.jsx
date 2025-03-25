@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from "react";
 
 import { generateColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
-import { updateHorizontalEdges } from "./utils/drawingUtils";
 import { checkAndGroupConnections } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes} from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { checkOrientation } from "./utils/checkOrientation";
+import { updateHorizontalEdges } from "./utils/drawingUtils";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -40,6 +40,7 @@ function App() {
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
   const horiEdgesRef = useRef(new Map());
+  const flippedConnectionsPerMove = useState([]);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [startNode, setStartNode] = useState(null);
@@ -278,8 +279,9 @@ function App() {
     // }
 
     if (latestPair && latestPair.length === 2) {
+      // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
       if(level === "Level 2") {
-        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, horiEdgesRef);
+        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove);
         if(a == -1){
           setErrorMessage("Orientation condition failed!");
           setSelectedNodes([]);
@@ -296,11 +298,17 @@ function App() {
         setConnections
       );
 
-      // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
+      updateHorizontalEdges(
+        connectionPairs,
+        horiEdgesRef,
+        topOrientation,
+        botOrientation,
+        flippedConnectionsPerMove
+      );
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
-    console.log("updated")
-    updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
+    // console.log("updated")
+    // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     // console.log("topOrientation",topOrientation);
     // console.log("botOrientation",botOrientation);
     // console.log("groupMapRef",groupMapRef);
