@@ -7,7 +7,7 @@ import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes} from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { checkOrientation } from "./utils/checkOrientation";
-import { updateHorizontalEdges } from "./utils/drawingUtils";
+import { updateHorizontalEdges } from "./utils/updateHorizontalEdges";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -41,6 +41,7 @@ function App() {
   const botOrientation = useRef(new Map());
   const horiEdgesRef = useRef(new Map());
   const flippedConnectionsPerMove = useState([]);
+  const [foldsFound, setFoldsFound] = useState([]);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [startNode, setStartNode] = useState(null);
@@ -68,7 +69,8 @@ function App() {
 
   // References for SVG elements and connection groups
   const [showSettings, setShowSettings] = useState(false);
-  const [welcomeMessage, setWelcomeMessage] = useState(false);
+  const [welcomeMessage0, setWelcomeMessage0] = useState(false);
+  const [welcomeMessage1, setWelcomeMessage] = useState(false);
   const [Percent100Message, setPercent100Message] = useState(false);
 
 
@@ -160,10 +162,12 @@ function App() {
    * Sets welcome message visibility based on the number of nodes in each row.
    */
   useEffect(() => {
-    if (topRowCount === 1 && bottomRowCount === 1) {
+    foldsFound.length = 0;
+    setWelcomeMessage0(true);
+    if (topRowCount === 1 && bottomRowCount === 1 && selectedLevel != null) {
       setWelcomeMessage(true);
     }
-  }, [topRowCount, bottomRowCount]);
+  }, [topRowCount, bottomRowCount, selectedLevel]);
   
 
   /**
@@ -171,7 +175,10 @@ function App() {
    */
   useEffect(() => {
     drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, { color: "red", size: 10 },
-      horiEdgesRef);
+      foldsFound);
+    if (foldsFound.length > 0) {
+      setErrorMessage("No fold condition failed!\nHint: Look for the flashing edges.")
+    }
     // console.log("Hello");
     // console.log("connections: ", connections);
     // console.log("connection pairs: ", connectionPairs);
@@ -303,7 +310,8 @@ function App() {
         horiEdgesRef,
         topOrientation,
         botOrientation,
-        flippedConnectionsPerMove
+        flippedConnectionsPerMove,
+        foldsFound
       );
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
@@ -592,8 +600,12 @@ function App() {
         bottomRowCount={bottomRowCount}
         lightMode={lightMode}
       />
-  
-      {welcomeMessage && (
+
+      {welcomeMessage0 && (
+        <div className="welcome-message fade-message">Select a level!</div>
+      )}
+
+      {welcomeMessage1 && (
         <div className="welcome-message fade-message">Connect the vertices!</div>
       )}
 
