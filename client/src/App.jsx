@@ -514,7 +514,6 @@ function App() {
     const isBottomNode = (id) => id.startsWith("bottom");
     if (isBottomNode(node1) && isTopNode(node2)) {
       console.log('Swapping nodes to maintain top-to-bottom order');
-      alert('Swapping nodes to maintain top-to-bottom order');
       [node1, node2] = [node2, node1];
     }
   
@@ -567,23 +566,17 @@ function App() {
     let newConnection;
     if (edgeState) {
       console.log('Using existing edge state color');
-      alert('Using existing edge state color');
       newColor = edgeState.color;
       newConnection = { nodes: [node1, node2], color: newColor };
     } else {
       console.log('Generating new color');
-      alert('Generating new color');
       newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
       newConnection = { nodes: [node1, node2], color: newColor };
     }
-  
     const tempConnections = [...connections, newConnection];
     console.log('Temporary connections:', tempConnections);
-    alert('Temporary connections created');
-
     const getIncidentEdges = (vertex) => {
       console.log('Getting incident edges for vertex:', vertex);
-      alert('Checking incident edges at vertex: ' + vertex);
       return tempConnections
         .filter((conn) => conn.nodes.includes(vertex))
         .map((conn) => ({
@@ -595,7 +588,6 @@ function App() {
   
     const getAllVertices = () => {
       console.log('Getting all vertices');
-      alert('Getting all vertices');
       const topVertices = Array.from({ length: topRowCount }, (_, i) => `top-${i}`);
       const bottomVertices = Array.from({ length: bottomRowCount }, (_, i) => `bottom-${i}`);
       return [...topVertices, ...bottomVertices];
@@ -603,12 +595,10 @@ function App() {
   
     const checkAdjacentEdgeColors = () => {
       console.log('Checking adjacent edge colors');
-      alert('Checking adjacent edge colors');
       const vertices = getAllVertices();
       for (const vertex of vertices) {
         const incidentEdges = getIncidentEdges(vertex);
         console.log('Incident edges at vertex', vertex, ':', incidentEdges);
-        alert('Checking vertex: ' + vertex + '\nIncident edges: ' + JSON.stringify(incidentEdges));
         for (let i = 0; i < incidentEdges.length - 1; i++) {
           for (let j = i + 1; j < incidentEdges.length; j++) {
             const edge1 = incidentEdges[i];
@@ -629,7 +619,6 @@ function App() {
       checkAdjacentEdgeColors();
       if (edgeState) {
         console.log('Finalizing connection with existing edge state');
-        alert('Finalizing connection with existing edge state');
         setConnections(tempConnections);
         setConnectionPairs((prevPairs) => {
           const lastPair = prevPairs[prevPairs.length - 1];
@@ -644,7 +633,6 @@ function App() {
         setEdgeState(null);
       } else {
         console.log('Finalizing new connection');
-        alert('Finalizing new connection');
         setConnections(tempConnections);
         setConnectionPairs([...connectionPairs, [newConnection]]);
         setEdgeState(newConnection);
