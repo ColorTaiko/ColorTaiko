@@ -600,7 +600,6 @@ function App() {
       setEdgeState(newConnection);
     }
     setSelectedNodes([]);
-    alert(`Successfully connected ${node1} to ${node2} with color ${currentColor}`);
   };
 
   if (lightMode) {
