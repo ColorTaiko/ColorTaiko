@@ -490,14 +490,12 @@ function App() {
     return row1 === row2 ? 'horizontal' : 'vertical';
   };
 
-  const tryConnect = (nodes, connections) => {
-    if (nodes.length !== 2) {
-        console.log("Error: Nodes length isn't 2.");
-        return;
-    }
+  const tryConnect = (nodes) => {
+    if (nodes.length !== 2) return;
     let [node1, node2] = nodes;
     const isTopNode = (id) => id.startsWith("top");
     const isBottomNode = (id) => id.startsWith("bottom");
+    console.log(`Attempting to connect ${node1} & ${node2}`);
     if (isBottomNode(node1) && isTopNode(node2)) {
         [node1, node2] = [node2, node1];
     }
@@ -510,7 +508,6 @@ function App() {
         }
         setErrorMessage("Can't connect 2 vertices from the same row.");
         setSelectedNodes([]);
-        console.log("Error: Can't connect 2 vertices from the same row.");
         return;
     }
     const isDuplicate = connections.some(
@@ -524,7 +521,6 @@ function App() {
         }
         setErrorMessage("These vertices are already connected.");
         setSelectedNodes([]);
-        console.log("Error: These vertices are already connected.");
         return;
     }
     if (
@@ -538,23 +534,60 @@ function App() {
             "2 vertical edges in each pair shouldn't share a common vertex"
         );
         setSelectedNodes([]);
-        console.log("Error: 2 vertical edges in each pair shouldn't share a common vertex");
         return;
     }
     let newColor;
+    const getOrientation = (node) => isTopNode(node) ? 'out' : 'in';
+    const checkNoPattern = (newConn) => {
+        const vertexEdges = new Map();
+        const addEdge = (vertex, color, orientation) => {
+            if (!vertexEdges.has(vertex)) {
+                vertexEdges.set(vertex, []);
+            }
+            vertexEdges.get(vertex).push({ color, orientation });
+        };
+        for (const pair of connectionPairs) {
+            for (const conn of pair) {
+                const [v1, v2] = conn.nodes;
+                addEdge(v1, conn.color, getOrientation(v1));
+                addEdge(v2, conn.color, getOrientation(v2));
+            }
+        }
+        addEdge(newConn.nodes[0], newConn.color, getOrientation(newConn.nodes[0]));
+        addEdge(newConn.nodes[1], newConn.color, getOrientation(newConn.nodes[1]));
+        const patternCount = new Map();
+        for (const [vertex, edges] of vertexEdges) {
+            if (edges.length >= 2) {
+                const sortedEdges = edges
+                    .map(edge => ({ color: edge.color, orientation: edge.orientation }))
+                    .sort((a, b) => a.color.localeCompare(b.color));
+                const pattern = [
+                    { color: sortedEdges[0].color, orientation: sortedEdges[0].orientation },
+                    { color: sortedEdges[1].color, orientation: sortedEdges[1].orientation }
+                ];
+                const patternStr = JSON.stringify(pattern);
+                patternCount.set(patternStr, (patternCount.get(patternStr) || 0) + 1);
+                if (patternCount.get(patternStr) > 1) {
+                    console.log(`No-pattern failed: Pattern ${patternStr} repeats at vertex ${vertex}`);
+                    return { passes: false, pattern: patternStr };
+                }
+            }
+        }
+        return { passes: true };
+    };
     if (edgeState) {
         newColor = edgeState.color;
         const newConnection = {
             nodes: [node1, node2],
             color: newColor,
         };
-        if (violatesNoPattern(newConnection, connections)) {
+        const patternCheck = checkNoPattern(newConnection);
+        if (!patternCheck.passes) {
             if (soundBool) {
                 errorAudio.play();
             }
-            setErrorMessage("No-pattern failed: Duplicate pattern detected.");
+            setErrorMessage(`No-pattern failed: Pattern ${patternCheck.pattern} repeats`);
             setSelectedNodes([]);
-            console.log("Error: No-pattern failed: Duplicate pattern detected.");
             return;
         }
         setConnections([...connections, newConnection]);
@@ -569,6 +602,7 @@ function App() {
             } else {
                 updatedPairs = [...prevPairs, [edgeState, newConnection]];
             }
+            console.log("Updated connection pairs:", updatedPairs);
             return updatedPairs;
         });
         setEdgeState(null);
@@ -578,60 +612,22 @@ function App() {
             nodes: [node1, node2],
             color: newColor,
         };
-        if (violatesNoPattern(newConnection, connections)) {
+        const patternCheck = checkNoPattern(newConnection);
+        if (!patternCheck.passes) {
             if (soundBool) {
                 errorAudio.play();
             }
-            setErrorMessage("No-pattern failed: Duplicate pattern detected.");
+            setErrorMessage(`No-pattern failed: Pattern ${patternCheck.pattern} repeats`);
             setSelectedNodes([]);
-            console.log("Error: No-pattern failed: Duplicate pattern detected.");
             return;
         }
         setConnections([...connections, newConnection]);
         setConnectionPairs([...connectionPairs, [newConnection]]);
+        console.log("New connection:", newConnection);
+        console.log("Current connection pairs:", connectionPairs);
         setEdgeState(newConnection);
     }
     setSelectedNodes([]);
-  };
-  const violatesNoPattern = (newConnection, connections) => {
-    const node1 = newConnection.nodes[0];
-    const node2 = newConnection.nodes[1];
-    const color = newConnection.color;
-    const getOrientation = (nodeId) => {
-        return nodeId.startsWith("top") ? "out" : "in";
-    };
-    const newPattern = {
-        color1: color,
-        orientation1: getOrientation(node1),
-        color2: color,
-        orientation2: getOrientation(node2),
-    };
-    for (let conn of connections) {
-        if (conn.nodes.includes(node1) || conn.nodes.includes(node2)) {
-            const connNode1 = conn.nodes[0];
-            const connNode2 = conn.nodes[1];
-            const connColor = conn.color;
-            const existingPattern = {
-                color1: connColor,
-                orientation1: getOrientation(connNode1),
-                color2: connColor,
-                orientation2: getOrientation(connNode2),
-            };
-            if (
-                (newPattern.color1 === existingPattern.color1 &&
-                    newPattern.orientation1 === existingPattern.orientation1 &&
-                    newPattern.color2 === existingPattern.color2 &&
-                    newPattern.orientation2 === existingPattern.orientation2) ||
-                (newPattern.color1 === existingPattern.color2 &&
-                    newPattern.orientation1 === existingPattern.orientation2 &&
-                    newPattern.color2 === existingPattern.color1 &&
-                    newPattern.orientation2 === existingPattern.orientation1)
-            ) {
-                return true;
-            }
-        }
-    }
-    return false;
   };
 
   if (lightMode) {
