@@ -507,21 +507,51 @@ function App() {
       [node1, node2] = [node2, node1];
     }
 
-    for (let i = 0; i < connections.length; i++) {
-      for (let j = i + 1; j < connections.length; j++) {
-          let edge1 = connections[i];
-          let edge2 = connections[j];
-          if (
-              (edge1.nodes[1] === edge2.nodes[0] || edge1.nodes[0] === edge2.nodes[1]) &&
-              edge1.color !== edge2.color
-          ) {
-              if (soundBool) {
-                  errorAudio.play();
-              }
-              setErrorMessage("No-Pattern Failed: Adjacent orientation colors are different.");
-              return;
+    const checkAdjacentEdges = () => {
+      const rowConnections = {
+          top: [],
+          bottom: []
+      };
+      connections.forEach(conn => {
+          const [nodeA, nodeB] = conn.nodes;
+          if (nodeA.startsWith('top') || nodeB.startsWith('top')) {
+              rowConnections.top.push(conn);
+          } else {
+              rowConnections.bottom.push(conn);
           }
-       }
+      });
+
+      const sortConnections = (conns) => {
+          return conns.sort((a, b) => {
+              const aIdx = Math.min(...a.nodes.map(n => parseInt(n.split('-')[1])));
+              const bIdx = Math.min(...b.nodes.map(n => parseInt(n.split('-')[1])));
+              return aIdx - bIdx;
+          });
+      };
+
+      const checkRow = (sortedConns) => {
+          for (let i = 0; i < sortedConns.length - 1; i++) {
+              const current = sortedConns[i];
+              const next = sortedConns[i + 1];
+              const currentNodes = current.nodes.map(n => parseInt(n.split('-')[1])).sort();
+              const nextNodes = next.nodes.map(n => parseInt(n.split('-')[1])).sort();
+              if (currentNodes[1] === nextNodes[0]) {
+                  if (current.color !== next.color) {
+                      return false;
+                  }
+              }
+          }
+          return true;
+      };
+      const topValid = checkRow(sortConnections(rowConnections.top));
+      const bottomValid = checkRow(sortConnections(rowConnections.bottom));
+      return topValid && bottomValid;
+    };
+
+    if (!checkAdjacentEdges()) {
+        if (soundBool) errorAudio.play();
+        setErrorMessage("No-Pattern Failed: Adjacent edges must have the same color.");
+        return;
     }
 
     if (
@@ -566,44 +596,61 @@ function App() {
     }
 
     let newColor;
+    let newConnection;
     if (edgeState) {
-      // If there is a pending edge, use the same color and create a pair
-      newColor = edgeState.color;
-      const newConnection = {
-        nodes: [node1, node2],
-        color: newColor,
-      };
-      setConnections([...connections, newConnection]);
-      setConnectionPairs((prevPairs) => {
-        const lastPair = prevPairs[prevPairs.length - 1];
-        let updatedPairs;
-        if (lastPair && lastPair.length === 1) {
-          // If the last pair has one connection, complete it
-          updatedPairs = [
-            ...prevPairs.slice(0, -1),
-            [...lastPair, newConnection],
-          ];
-        } else {
-          // Otherwise, create a new pair
-          updatedPairs = [...prevPairs, [edgeState, newConnection]];
-        }
-        return updatedPairs;
-      });
-      //.log(connectionPairs);
-      setEdgeState(null);
+        newColor = edgeState.color;
+        newConnection = { nodes: [node1, node2], color: newColor };
     } else {
-      // If no pending edge, create a new edge and add to edgeState
-      newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
-      //console.log("newColor: ", newColor);
-      //console.log(newColor);
-      const newConnection = {
-        nodes: [node1, node2],
-        color: newColor,
-      };
-      setConnections([...connections, newConnection]);
-      // Create a new pair and add to the connection pairs
-      setConnectionPairs([...connectionPairs, [newConnection]]);
-      setEdgeState(newConnection);
+        newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
+        newConnection = { nodes: [node1, node2], color: newColor };
+    }
+    const tempConnections = [...connections, newConnection];
+    const hasViolation = () => {
+        const relevantConns = tempConnections.filter(conn => 
+            conn.nodes.includes(node1) || conn.nodes.includes(node2));
+        
+        const rowConns = {
+            top: relevantConns.filter(conn => conn.nodes.some(n => n.startsWith('top'))),
+            bottom: relevantConns.filter(conn => conn.nodes.some(n => n.startsWith('bottom')))
+        };
+
+        const checkRow = (conns) => {
+            const sorted = conns.sort((a, b) => {
+                const aIdx = Math.min(...a.nodes.map(n => parseInt(n.split('-')[1])));
+                const bIdx = Math.min(...b.nodes.map(n => parseInt(n.split('-')[1])));
+                return aIdx - bIdx;
+            });
+
+            for (let i = 0; i < sorted.length - 1; i++) {
+                const current = sorted[i];
+                const next = sorted[i + 1];
+                const currentNodes = current.nodes.map(n => parseInt(n.split('-')[1])).sort();
+                const nextNodes = next.nodes.map(n => parseInt(n.split('-')[1])).sort();
+                if (currentNodes[1] === nextNodes[0] && current.color !== next.color) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        return checkRow(rowConns.top) || checkRow(rowConns.bottom);
+    };
+
+    if (hasViolation()) {
+        if (soundBool) errorAudio.play();
+        setErrorMessage("No-Pattern Failed: Adjacent edges must have the same color.");
+        return;
+    }
+    if (edgeState) {
+        setConnections([...connections, newConnection]);
+        setConnectionPairs(prevPairs => {
+            const lastPair = prevPairs[prevPairs.length - 1];
+            return [...prevPairs.slice(0, -1), [...lastPair, newConnection]];
+        });
+        setEdgeState(null);
+    } else {
+        setConnections([...connections, newConnection]);
+        setConnectionPairs([...connectionPairs, [newConnection]]);
+        setEdgeState(newConnection);
     }
     setSelectedNodes([]);
   };
