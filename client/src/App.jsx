@@ -397,8 +397,25 @@ function App() {
     let newColor;
     const getOrientation = (node) => isTopNode(node) ? 'out' : 'in';
     const colorMap = {
-      "#e6194b": "red",
-      "#a9a9a9": "dark grey"
+      "#e6194b": "Red",
+      "#ffffff": "White",
+      "#a9a9a9": "Dark Grey",
+      "#3cb44b": "Green",
+      "#ffe119": "Yellow",
+      "#f58231": "Orange",
+      "#dcbeff": "Lavender",
+      "#9a6324": "Brown",
+      "#fabebe": "Pink",
+      "#7f00ff": "Violet",
+      "#f032e6": "Magenta",
+      "#42d4f4": "Cyan",
+      "#800000": "Maroon",
+      "#469990": "Teal",
+      "#bfef45": "Lime",
+      "#808000": "Olive",
+      "#ffd8b1": "Apricot",
+      "#aaffc3": "Mint",
+      "#c8ad7f": "Light French Beige",
     };
     const formatPatternWithColorNames = (patternStr) => {
       const pattern = JSON.parse(patternStr);
