@@ -491,6 +491,13 @@ function App() {
   };
 
   const tryConnect = (nodes) => {
+    if (nodes.length === 0) {
+      if (soundBool) {
+          errorAudio.play();
+      }
+      setErrorMessage("No Pattern Detected.");
+      return;
+    }
     if (nodes.length !== 2) return;
     let [node1, node2] = nodes;
     const isTopNode = (id) => id.startsWith("top");
@@ -498,6 +505,23 @@ function App() {
 
     if (isBottomNode(node1) && isTopNode(node2)) {
       [node1, node2] = [node2, node1];
+    }
+
+    for (let i = 0; i < connections.length; i++) {
+      for (let j = i + 1; j < connections.length; j++) {
+          let edge1 = connections[i];
+          let edge2 = connections[j];
+          if (
+              (edge1.nodes[1] === edge2.nodes[0] || edge1.nodes[0] === edge2.nodes[1]) &&
+              edge1.color !== edge2.color
+          ) {
+              if (soundBool) {
+                  errorAudio.play();
+              }
+              setErrorMessage("No-Pattern Failed: Adjacent orientation colors are different.");
+              return;
+          }
+       }
     }
 
     if (
@@ -541,56 +565,47 @@ function App() {
       return;
     }
 
-    // Pattern Checking
-    try {
-      patternChecker.checkAndUpdatePatterns([[node1, node2]], {
-        getHorizontalConnections,
-        getNextPoint,
-        getPreviousPoint,
-        getConnectionColor,
-        getConnectionOrientation
+    let newColor;
+    if (edgeState) {
+      // If there is a pending edge, use the same color and create a pair
+      newColor = edgeState.color;
+      const newConnection = {
+        nodes: [node1, node2],
+        color: newColor,
+      };
+      setConnections([...connections, newConnection]);
+      setConnectionPairs((prevPairs) => {
+        const lastPair = prevPairs[prevPairs.length - 1];
+        let updatedPairs;
+        if (lastPair && lastPair.length === 1) {
+          // If the last pair has one connection, complete it
+          updatedPairs = [
+            ...prevPairs.slice(0, -1),
+            [...lastPair, newConnection],
+          ];
+        } else {
+          // Otherwise, create a new pair
+          updatedPairs = [...prevPairs, [edgeState, newConnection]];
+        }
+        return updatedPairs;
       });
-
-      let newColor;
-      if (edgeState) {
-        newColor = edgeState.color;
-        const newConnection = {
-          nodes: [node1, node2],
-          color: newColor,
-        };
-        setConnections([...connections, newConnection]);
-        setConnectionPairs((prevPairs) => {
-          const lastPair = prevPairs[prevPairs.length - 1];
-          let updatedPairs;
-          if (lastPair && lastPair.length === 1) {
-            updatedPairs = [
-              ...prevPairs.slice(0, -1),
-              [...lastPair, newConnection],
-            ];
-          } else {
-            updatedPairs = [...prevPairs, [edgeState, newConnection]];
-          }
-          return updatedPairs;
-        });
-        setEdgeState(null);
-      } else {
-        newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
-        const newConnection = {
-          nodes: [node1, node2],
-          color: newColor,
-        };
-        setConnections([...connections, newConnection]);
-        setConnectionPairs([...connectionPairs, [newConnection]]);
-        setEdgeState(newConnection);
-      }
-      setSelectedNodes([]);
-    } catch (error) {
-      if (soundBool) {
-        errorAudio.play();
-      }
-      setErrorMessage(error.message);
-      setSelectedNodes([]);
+      //.log(connectionPairs);
+      setEdgeState(null);
+    } else {
+      // If no pending edge, create a new edge and add to edgeState
+      newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
+      //console.log("newColor: ", newColor);
+      //console.log(newColor);
+      const newConnection = {
+        nodes: [node1, node2],
+        color: newColor,
+      };
+      setConnections([...connections, newConnection]);
+      // Create a new pair and add to the connection pairs
+      setConnectionPairs([...connectionPairs, [newConnection]]);
+      setEdgeState(newConnection);
     }
+    setSelectedNodes([]);
   };
   
 
