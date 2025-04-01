@@ -491,89 +491,142 @@ function App() {
   };
 
   const tryConnect = (nodes) => {
-        if (nodes.length !== 2) {
-            console.log("Invalid number of nodes selected.");
-            alert("Please select exactly 2 nodes.");
-            return;
-        }
-        let [node1, node2] = nodes;
-        console.log("Attempting to connect nodes:", node1, node2);
-        const isTopNode = (id) => id.startsWith("top");
-        const isBottomNode = (id) => id.startsWith("bottom");
-        if (isBottomNode(node1) && isTopNode(node2)) {
-            [node1, node2] = [node2, node1];
-        }
-        if (
-            (isTopNode(node1) && isTopNode(node2)) ||
-            (isBottomNode(node1) && isBottomNode(node2))
-        ) {
-            console.log("Error: Can't connect nodes from the same row.");
-            alert("Can't connect 2 vertices from the same row.");
-            if (soundBool) errorAudio.play();
-            setErrorMessage("Can't connect 2 vertices from the same row.");
-            setSelectedNodes([]);
-            return;
-        }
-        const isDuplicate = connections.some(
-            (conn) =>
-                (conn.nodes.includes(node1) && conn.nodes.includes(node2)) ||
-                (conn.nodes.includes(node2) && conn.nodes.includes(node1))
-        );
-        if (isDuplicate) {
-            console.log("Error: Duplicate connection detected.");
-            alert("These vertices are already connected.");
-            if (soundBool) errorAudio.play();
-            setErrorMessage("These vertices are already connected.");
-            setSelectedNodes([]);
-            return;
-        }
-        if (
-            edgeState &&
-            (edgeState.nodes.includes(node1) || edgeState.nodes.includes(node2))
-        ) {
-            console.log("Error: 2 vertical edges share a common vertex.");
-            alert("2 vertical edges in each pair shouldn't share a common vertex.");
-            if (soundBool) errorAudio.play();
-            setErrorMessage("2 vertical edges in each pair shouldn't share a common vertex");
-            setSelectedNodes([]);
-            return;
-        }
-        let newColor;
-        if (edgeState) {
-            newColor = edgeState.color;
-            const newConnection = {
-                nodes: [node1, node2],
-                color: newColor,
-            };
-            console.log("Adding connection to existing edge pair:", newConnection);
-            setConnections([...connections, newConnection]);
-            setConnectionPairs((prevPairs) => {
-                const lastPair = prevPairs[prevPairs.length - 1];
-                let updatedPairs;
-                if (lastPair && lastPair.length === 1) {
-                    updatedPairs = [...prevPairs.slice(0, -1), [...lastPair, newConnection]];
-                } else {
-                    updatedPairs = [...prevPairs, [edgeState, newConnection]];
-                }
-                console.log("Updated connection pairs:", updatedPairs);
-                return updatedPairs;
-            });
-            setEdgeState(null);
-        } else {
-            newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
-            console.log("Generated new color for connection:", newColor);
-            const newConnection = {
-                nodes: [node1, node2],
-                color: newColor,
-            };
-            console.log("Creating new connection:", newConnection);
-            setConnections([...connections, newConnection]);
-            setConnectionPairs([...connectionPairs, [newConnection]]);
-            setEdgeState(newConnection);
-        }
-        console.log("Connection successful, resetting selection.");
-        alert("Connection added successfully!");
-        setSelectedNodes([]);
+    if (nodes.length !== 2) return;
+    let [node1, node2] = nodes;
+    const isTopNode = (id) => id.startsWith("top");
+    const isBottomNode = (id) => id.startsWith("bottom");
+    console.log("Attempting to connect nodes:", node1, node2);
+    if (isBottomNode(node1) && isTopNode(node2)) {
+        [node1, node2] = [node2, node1];
+    }
+    if (
+        (isTopNode(node1) && isTopNode(node2)) ||
+        (isBottomNode(node1) && isBottomNode(node2))
+    ) {
+        console.log("Error: Can't connect 2 vertices from the same row");
+        if(soundBool) {
+            errorAudio.play();
+        }
+        setErrorMessage("Can't connect 2 vertices from the same row.");
+        setSelectedNodes([]);
+        return;
+    }
+    const isDuplicate = connections.some(
+        (conn) =>
+            (conn.nodes.includes(node1) && conn.nodes.includes(node2)) ||
+            (conn.nodes.includes(node2) && conn.nodes.includes(node1))
+    );
+    if (isDuplicate) {
+        console.log("Error: These vertices are already connected");
+        if(soundBool) {
+            errorAudio.play();
+        }
+        setErrorMessage("These vertices are already connected.");
+        setSelectedNodes([]);
+        return;
+    }
+    if (
+        edgeState &&
+        (edgeState.nodes.includes(node1) || edgeState.nodes.includes(node2))
+    ) {
+        console.log("Error: 2 vertical edges in each pair shouldn't share a common vertex");
+        if(soundBool) {
+            errorAudio.play();
+        }
+        setErrorMessage(
+            "2 vertical edges in each pair shouldn't share a common vertex"
+        );
+        setSelectedNodes([]);
+        return;
+    }
+    const checkNoPatternCondition = (newEdge) => {
+        const incidentEdges = connections.filter(conn => 
+            conn.nodes.includes(node1) || conn.nodes.includes(node2)
+        );
+        for (const edge of incidentEdges) {
+            const otherNode = edge.nodes.find(n => n !== node1 && n !== node2);
+            if (!otherNode) continue;
+            const orientation1 = edge.nodes[0].startsWith("top") ? "out" : "in";
+            const orientation2 = newEdge.nodes[0].startsWith("top") ? "out" : "in";
+            const pattern1 = {
+                color: edge.color,
+                orientation: orientation1
+            };
+            const pattern2 = {
+                color: newEdge.color,
+                orientation: orientation2
+            };
+            const patternExists = connections.some(conn => {
+                const otherNodes = conn.nodes.filter(n => n !== node1 && n !== node2);
+                if (otherNodes.length === 0) return false;
+                const otherOrientation = conn.nodes[0].startsWith("top") ? "out" : "in";
+                return (
+                    (conn.color === pattern1.color && otherOrientation === pattern1.orientation &&
+                     newEdge.color === pattern2.color && orientation2 === pattern2.orientation) ||
+                    (conn.color === pattern2.color && otherOrientation === pattern2.orientation &&
+                     newEdge.color === pattern1.color && orientation2 === pattern1.orientation)
+                );
+            });
+            if (patternExists) {
+                console.log("Error: Duplicate pattern detected - violates no-pattern condition");
+                alert("Error: Duplicate pattern detected - violates no-pattern condition");
+                return true;
+            }
+        }
+        return false;
+    };
+    let newColor;
+    if (edgeState) {
+        newColor = edgeState.color;
+        const newConnection = {
+            nodes: [node1, node2],
+            color: newColor,
+        };
+        if (checkNoPatternCondition(newConnection)) {
+            if(soundBool) {
+                errorAudio.play();
+            }
+            setErrorMessage("This connection would create a duplicate pattern (Violates no-pattern condition)");
+            setSelectedNodes([]);
+            return;
+        }
+        setConnections([...connections, newConnection]);
+        setConnectionPairs((prevPairs) => {
+            const lastPair = prevPairs[prevPairs.length - 1];
+            let updatedPairs;
+            if (lastPair && lastPair.length === 1) {
+                updatedPairs = [
+                    ...prevPairs.slice(0, -1),
+                    [...lastPair, newConnection],
+                ];
+            } else {
+                updatedPairs = [...prevPairs, [edgeState, newConnection]];
+            }
+            return updatedPairs;
+        });
+        console.log("Created new connection pair:", [edgeState, newConnection]);
+        setEdgeState(null);
+    } else {
+        newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
+        console.log("Generated new color:", newColor);
+        const newConnection = {
+            nodes: [node1, node2],
+            color: newColor,
+        };
+        if (checkNoPatternCondition(newConnection)) {
+            if(soundBool) {
+                errorAudio.play();
+            }
+            setErrorMessage("This connection would create a duplicate pattern (Violates no-pattern condition)");
+            setSelectedNodes([]);
+            return;
+        }
+        setConnections([...connections, newConnection]);
+        setConnectionPairs([...connectionPairs, [newConnection]]);
+        console.log("Created new single connection:", newConnection);
+        setEdgeState(newConnection);
+    }
+    setSelectedNodes([]);
   };
 
   if (lightMode) {
