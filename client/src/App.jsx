@@ -490,6 +490,7 @@ function App() {
     return row1 === row2 ? 'horizontal' : 'vertical';
   };
 
+  const persistentPatterns = new Map();
   const tryConnect = (nodes) => {
     console.log("tryConnect called with nodes:", nodes);
     if (nodes.length === 0) {
@@ -505,33 +506,30 @@ function App() {
       return;
     }
     let [node1, node2] = nodes;
-    console.log("Connecting nodes:", node1, "&", node2);
+    console.log("Connecting nodes:", node1, "and", node2);
     const isTopNode = (id) => id.startsWith("top");
     const isBottomNode = (id) => id.startsWith("bottom");
     if (isBottomNode(node1) && isTopNode(node2)) {
-      console.log("Swapping nodes: bottom node 1st, swapping to", node2, node1);
+      console.log("Swapping nodes: bottom node first, swapping to", node2, node1);
       [node1, node2] = [node2, node1];
     }
-  
     if (
       (isTopNode(node1) && isTopNode(node2)) ||
       (isBottomNode(node1) && isBottomNode(node2))
     ) {
-      console.log("Can't connect 2 vertices from the same row:", node1, node2);
+      console.log("Cannot connect two vertices from the same row:", node1, node2);
       if (soundBool) {
         errorAudio.play();
       }
-      alert("Can't connect 2 vertices from the same row.");
+      alert("Can't connect two vertices from the same row.");
       setSelectedNodes([]);
       return;
     }
-  
     const isDuplicate = connections.some(
       (conn) =>
         (conn.nodes.includes(node1) && conn.nodes.includes(node2)) ||
         (conn.nodes.includes(node2) && conn.nodes.includes(node1))
     );
-  
     if (isDuplicate) {
       console.log("Duplicate connection detected:", node1, node2);
       if (soundBool) {
@@ -541,7 +539,6 @@ function App() {
       setSelectedNodes([]);
       return;
     }
-  
     if (
       edgeState &&
       (edgeState.nodes.includes(node1) || edgeState.nodes.includes(node2))
@@ -554,7 +551,6 @@ function App() {
       setSelectedNodes([]);
       return;
     }
-  
     let newColor;
     let newConnection;
     if (edgeState) {
@@ -583,7 +579,7 @@ function App() {
       console.log(`Horizontal edges for vertex ${vertex}:`, edges);
       return edges;
     };
-  
+
     const getAllVertices = () => {
       const topVertices = Array.from({ length: topRowCount }, (_, i) => `top-${i}`);
       const bottomVertices = Array.from({ length: bottomRowCount }, (_, i) => `bottom-${i}`);
@@ -591,10 +587,52 @@ function App() {
       console.log("All vertices:", allVertices);
       return allVertices;
     };
-  
+
     const checkNoPatternCondition = () => {
       const vertices = getAllVertices();
-      const allPatterns = new Map();
+      const newPatterns = new Map();
+      for (const vertex of vertices) {
+        const horizontalEdges = getHorizontalEdges(vertex);
+        if (horizontalEdges.length < 2) {
+          console.log(`Vertex ${vertex} has fewer than 2 horizontal edges, skipping pattern generation.`);
+          continue;
+        }
+        const sortedEdges = horizontalEdges.sort((a, b) =>
+          a.otherNode.localeCompare(b.otherNode)
+        );
+        for (let i = 0; i < sortedEdges.length - 1; i++) {
+          for (let j = i + 1; j < sortedEdges.length; j++) {
+            const edge1 = sortedEdges[i];
+            const edge2 = sortedEdges[j];
+            const d1 = edge1.otherNode < vertex ? 'in' : 'out';
+            const d2 = edge2.otherNode < vertex ? 'in' : 'out';
+            const pattern = JSON.stringify(
+              [
+                { color: edge1.color, direction: d1 },
+                { color: edge2.color, direction: d2 },
+              ].sort((a, b) => a.color.localeCompare(b.color))
+            );
+            console.log(`Pattern at vertex ${vertex}:`, pattern);
+            newPatterns.set(pattern, (newPatterns.get(pattern) || 0) + 1);
+          }
+        }
+      }
+      for (const [pattern, count] of newPatterns) {
+        const totalCount = (persistentPatterns.get(pattern) || 0) + count;
+        console.log(`Checking pattern ${pattern}: Total count = ${totalCount}`);
+        if (totalCount > 1) {
+          console.log(`Repeating pattern detected: ${pattern}, total count: ${totalCount}`);
+          throw new Error("No-Pattern Failed: A repeating pattern was detected.");
+        }
+      }
+      console.log("New patterns from this call:", Array.from(newPatterns.entries()));
+      console.log("Persistent patterns before update:", Array.from(persistentPatterns.entries()));
+    };
+    try {
+      console.log("Checking No-pattern condition...");
+      checkNoPatternCondition();
+      console.log("No repeating patterns found. Finalizing connection...");
+      const vertices = getAllVertices();
       for (const vertex of vertices) {
         const horizontalEdges = getHorizontalEdges(vertex);
         if (horizontalEdges.length < 2) continue;
@@ -613,23 +651,11 @@ function App() {
                 { color: edge2.color, direction: d2 },
               ].sort((a, b) => a.color.localeCompare(b.color))
             );
-            console.log(`Pattern at vertex ${vertex}:`, pattern);
-            const count = allPatterns.get(pattern) || 0;
-            allPatterns.set(pattern, count + 1);
-            if (allPatterns.get(pattern) > 1) {
-              console.log(`Repeating pattern detected: ${pattern}, count: ${allPatterns.get(pattern)}`);
-              throw new Error("No-Pattern Failed: A repeating pattern was detected.");
-            }
+            persistentPatterns.set(pattern, (persistentPatterns.get(pattern) || 0) + 1);
           }
         }
       }
-      console.log("All patterns:", Array.from(allPatterns.entries()));
-    };
-  
-    try {
-      console.log("Checking No-pattern condition...");
-      checkNoPatternCondition();
-      console.log("No repeating patterns found. Finalizing connection...");
+      console.log("Persistent patterns after update:", Array.from(persistentPatterns.entries()));
       if (edgeState) {
         setConnections(tempConnections);
         setConnectionPairs((prevPairs) => {
@@ -661,7 +687,7 @@ function App() {
       alert(error.message);
       setSelectedNodes([]);
       console.log("Selected nodes cleared due to error.");
-    }
+      }
   };
 
   if (lightMode) {
