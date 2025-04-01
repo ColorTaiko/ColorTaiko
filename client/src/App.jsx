@@ -492,7 +492,6 @@ function App() {
 
   const tryConnect = (nodes) => {
     console.log('tryConnect initiated with nodes:', nodes);
-    alert('Attempting to connect nodes: ' + JSON.stringify(nodes));
     if (nodes.length === 0) {
       console.log('No nodes provided');
       alert('No nodes selected for connection');
