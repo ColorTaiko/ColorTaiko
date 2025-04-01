@@ -493,136 +493,102 @@ function App() {
   const tryConnect = (nodes) => {
     if (nodes.length !== 2) return;
     let [node1, node2] = nodes;
-    const isTopNode = (id) => id.startsWith("top");
-    const isBottomNode = (id) => id.startsWith("bottom");
-    console.log(`Attempting to connect ${node1} & ${node2}`);
+    const isTopNode = (id) => id.startsWith("top") || id.startsWith("b");
+    const isBottomNode = (id) => id.startsWith("bottom") || id.startsWith("a");
+    console.log("Attempting to connect nodes:", node1, node2);
     if (isBottomNode(node1) && isTopNode(node2)) {
         [node1, node2] = [node2, node1];
     }
-    if (
-        (isTopNode(node1) && isTopNode(node2)) ||
-        (isBottomNode(node1) && isBottomNode(node2))
-    ) {
-        if (soundBool) {
-            errorAudio.play();
-        }
+    if ((isTopNode(node1) && isTopNode(node2)) || 
+        (isBottomNode(node1) && isBottomNode(node2))) {
+        if(soundBool) errorAudio.play();
         setErrorMessage("Can't connect 2 vertices from the same row.");
         setSelectedNodes([]);
         return;
     }
-    const isDuplicate = connections.some(
-        (conn) =>
-            (conn.nodes.includes(node1) && conn.nodes.includes(node2)) ||
-            (conn.nodes.includes(node2) && conn.nodes.includes(node1))
+    const isDuplicate = connections.some(conn => 
+        (conn.nodes.includes(node1) && conn.nodes.includes(node2)) ||
+        (conn.nodes.includes(node2) && conn.nodes.includes(node1))
     );
     if (isDuplicate) {
-        if (soundBool) {
-            errorAudio.play();
-        }
+        if(soundBool) errorAudio.play();
         setErrorMessage("These vertices are already connected.");
         setSelectedNodes([]);
         return;
     }
-    if (
-        edgeState &&
-        (edgeState.nodes.includes(node1) || edgeState.nodes.includes(node2))
-    ) {
-        if (soundBool) {
-            errorAudio.play();
-        }
-        setErrorMessage(
-            "2 vertical edges in each pair shouldn't share a common vertex"
-        );
+    if (edgeState && (edgeState.nodes.includes(node1) || edgeState.nodes.includes(node2))) {
+        if(soundBool) errorAudio.play();
+        setErrorMessage("2 vertical edges in each pair shouldn't share a common vertex");
         setSelectedNodes([]);
         return;
     }
-    let newColor;
-    const getOrientation = (node) => isTopNode(node) ? 'out' : 'in';
-    const checkNoPattern = (newConn) => {
-        const vertexPatterns = new Map();
-        const addPattern = (conn, vertex) => {
-            const otherVertex = conn.nodes[0] === vertex ? conn.nodes[1] : conn.nodes[0];
-            const patternKey = `${vertex}:${conn.color}:${getOrientation(vertex)}`;
-            if (!vertexPatterns.has(vertex)) {
-                vertexPatterns.set(vertex, new Set());
+    const checkNoPatternViolation = (node, color) => {
+        const nodeConnections = connections.filter(conn => 
+            conn.nodes.includes(node)
+        );
+        const patterns = {};
+        nodeConnections.forEach(conn => {
+            const otherNode = conn.nodes[0] === node ? conn.nodes[1] : conn.nodes[0];
+            const orientation = isTopNode(otherNode) ? "in" : "out";
+            const pattern = `${conn.color}-${orientation}`;
+            if (!patterns[pattern]) {
+                patterns[pattern] = 0;
             }
-            vertexPatterns.get(vertex).add(patternKey);
-        };
-        for (const pair of connectionPairs) {
-            for (const conn of pair) {
-                addPattern(conn, conn.nodes[0]);
-                addPattern(conn, conn.nodes[1]);
-            }
+            patterns[pattern]++;
+        });
+        const newOrientation = isTopNode(node) ? "out" : "in";
+        const newPattern = `${color}-${newOrientation}`;
+        if (patterns[newPattern] && patterns[newPattern] > 0) {
+            console.log(`No-pattern violation detected at node ${node}!`);
+            console.log(`Pattern ${newPattern} already exists at this vertex`);
+            return true;
         }
-        const tempPatterns = new Map([...vertexPatterns]);
-        addPattern(newConn, newConn.nodes[0]);
-        addPattern(newConn, newConn.nodes[1]);
-        const patternCount = new Map();
-        for (const [vertex, patterns] of tempPatterns) {
-            if (patterns.size > 1) {
-                const patternList = Array.from(patterns).sort();
-                const patternStr = JSON.stringify(patternList);
-                patternCount.set(patternStr, (patternCount.get(patternStr) || 0) + 1);
-                if (patternCount.get(patternStr) > 1) {
-                    console.log(`No-pattern failed at vertex ${vertex}: ${patternStr}`);
-                    return false;
-                }
-            }
-        }
-        return true;
+        return false;
     };
+    const newColor = edgeState ? edgeState.color : generateColor(currentColor, setCurrentColor, connectionPairs);
+    if (checkNoPatternViolation(node1, newColor)) {
+        if(soundBool) errorAudio.play();
+        setErrorMessage(`No-pattern condition failed at ${node1}. This pattern already exists.`);
+        setSelectedNodes([]);
+        return;
+    }
+    if (checkNoPatternViolation(node2, newColor)) {
+        if(soundBool) errorAudio.play();
+        setErrorMessage(`No-pattern condition failed at ${node2}. This pattern already exists.`);
+        setSelectedNodes([]);
+        return;
+    }
     if (edgeState) {
-        newColor = edgeState.color;
         const newConnection = {
             nodes: [node1, node2],
             color: newColor,
         };
-        if (!checkNoPattern(newConnection)) {
-            if (soundBool) {
-                errorAudio.play();
-            }
-            setErrorMessage("No-pattern failed: Repeating pattern detected");
-            setSelectedNodes([]);
-            return;
-        }
         setConnections([...connections, newConnection]);
         setConnectionPairs((prevPairs) => {
             const lastPair = prevPairs[prevPairs.length - 1];
             let updatedPairs;
             if (lastPair && lastPair.length === 1) {
-                updatedPairs = [
-                    ...prevPairs.slice(0, -1),
-                    [...lastPair, newConnection],
-                ];
+                updatedPairs = [...prevPairs.slice(0, -1), [...lastPair, newConnection]];
             } else {
                 updatedPairs = [...prevPairs, [edgeState, newConnection]];
             }
-            console.log("Updated connection pairs:", updatedPairs);
             return updatedPairs;
         });
+        console.log("Connection pair completed successfully");
         setEdgeState(null);
     } else {
-        newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
         const newConnection = {
             nodes: [node1, node2],
             color: newColor,
         };
-        if (!checkNoPattern(newConnection)) {
-            if (soundBool) {
-                errorAudio.play();
-            }
-            setErrorMessage("No-pattern failed: Repeating pattern detected");
-            setSelectedNodes([]);
-            return;
-        }
         setConnections([...connections, newConnection]);
         setConnectionPairs([...connectionPairs, [newConnection]]);
-        console.log("New connection:", newConnection);
-        console.log("Current connection pairs:", connectionPairs);
         setEdgeState(newConnection);
+        console.log("1st connection of new pair created with color:", newColor);
     }
     setSelectedNodes([]);
   };
+
 
   if (lightMode) {
     document.body.classList.add('light-mode');
