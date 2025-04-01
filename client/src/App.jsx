@@ -489,7 +489,7 @@ function App() {
     const [row2] = pt2.split('-');
     return row1 === row2 ? 'horizontal' : 'vertical';
   };
-
+  
   const persistentPatterns = new Map();
   const tryConnect = (nodes) => {
     console.log("tryConnect called with nodes:", nodes);
@@ -517,11 +517,11 @@ function App() {
       (isTopNode(node1) && isTopNode(node2)) ||
       (isBottomNode(node1) && isBottomNode(node2))
     ) {
-      console.log("Cannot connect two vertices from the same row:", node1, node2);
+      console.log("Can't connect 2 vertices from the same row:", node1, node2);
       if (soundBool) {
         errorAudio.play();
       }
-      alert("Can't connect two vertices from the same row.");
+      alert("Can't connect 2 vertices from the same row.");
       setSelectedNodes([]);
       return;
     }
@@ -590,7 +590,8 @@ function App() {
 
     const checkNoPatternCondition = () => {
       const vertices = getAllVertices();
-      const newPatterns = new Map();
+      const tempPatterns = new Map();
+      console.log("Persistent patterns before check:", Array.from(persistentPatterns.entries()));
       for (const vertex of vertices) {
         const horizontalEdges = getHorizontalEdges(vertex);
         if (horizontalEdges.length < 2) {
@@ -613,49 +614,28 @@ function App() {
               ].sort((a, b) => a.color.localeCompare(b.color))
             );
             console.log(`Pattern at vertex ${vertex}:`, pattern);
-            newPatterns.set(pattern, (newPatterns.get(pattern) || 0) + 1);
+            const tempCount = (tempPatterns.get(pattern) || 0) + 1;
+            tempPatterns.set(pattern, tempCount);
+            const totalCount = (persistentPatterns.get(pattern) || 0) + tempCount;
+            console.log(`Checking pattern ${pattern}: Total count = ${totalCount}`);
+            if (totalCount > 1) {
+              console.log(`Repeating pattern detected: ${pattern}, total count: ${totalCount}`);
+              throw new Error("No-Pattern Failed: A repeating pattern was detected.");
+            }
           }
         }
       }
-      for (const [pattern, count] of newPatterns) {
-        const totalCount = (persistentPatterns.get(pattern) || 0) + count;
-        console.log(`Checking pattern ${pattern}: Total count = ${totalCount}`);
-        if (totalCount > 1) {
-          console.log(`Repeating pattern detected: ${pattern}, total count: ${totalCount}`);
-          throw new Error("No-Pattern Failed: A repeating pattern was detected.");
-        }
+      console.log("Patterns from this call:", Array.from(tempPatterns.entries()));
+      for (const [pattern, count] of tempPatterns) {
+        const newCount = (persistentPatterns.get(pattern) || 0) + count;
+        persistentPatterns.set(pattern, newCount);
       }
-      console.log("New patterns from this call:", Array.from(newPatterns.entries()));
-      console.log("Persistent patterns before update:", Array.from(persistentPatterns.entries()));
+      console.log("Persistent patterns after update:", Array.from(persistentPatterns.entries()));
     };
     try {
       console.log("Checking No-pattern condition...");
       checkNoPatternCondition();
       console.log("No repeating patterns found. Finalizing connection...");
-      const vertices = getAllVertices();
-      for (const vertex of vertices) {
-        const horizontalEdges = getHorizontalEdges(vertex);
-        if (horizontalEdges.length < 2) continue;
-        const sortedEdges = horizontalEdges.sort((a, b) =>
-          a.otherNode.localeCompare(b.otherNode)
-        );
-        for (let i = 0; i < sortedEdges.length - 1; i++) {
-          for (let j = i + 1; j < sortedEdges.length; j++) {
-            const edge1 = sortedEdges[i];
-            const edge2 = sortedEdges[j];
-            const d1 = edge1.otherNode < vertex ? 'in' : 'out';
-            const d2 = edge2.otherNode < vertex ? 'in' : 'out';
-            const pattern = JSON.stringify(
-              [
-                { color: edge1.color, direction: d1 },
-                { color: edge2.color, direction: d2 },
-              ].sort((a, b) => a.color.localeCompare(b.color))
-            );
-            persistentPatterns.set(pattern, (persistentPatterns.get(pattern) || 0) + 1);
-          }
-        }
-      }
-      console.log("Persistent patterns after update:", Array.from(persistentPatterns.entries()));
       if (edgeState) {
         setConnections(tempConnections);
         setConnectionPairs((prevPairs) => {
@@ -687,7 +667,7 @@ function App() {
       alert(error.message);
       setSelectedNodes([]);
       console.log("Selected nodes cleared due to error.");
-      }
+    }
   };
 
   if (lightMode) {
