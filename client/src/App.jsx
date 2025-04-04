@@ -395,101 +395,90 @@ function App() {
         return;
     }
     let newColor;
-    const getOrientation = (node) => (isTopNode(node) ? "out" : "in");
+    const getOrientation = (node) => isTopNode(node) ? 'out' : 'in';
     const colorMap = {
-        "#e6194b": "Red",
-        "#ffffff": "White",
-        "#a9a9a9": "Dark Grey",
-        "#3cb44b": "Green",
-        "#ffe119": "Yellow",
-        "#f58231": "Orange",
-        "#dcbeff": "Lavender",
-        "#9a6324": "Brown",
-        "#fabebe": "Pink",
-        "#7f00ff": "Violet",
-        "#f032e6": "Magenta",
-        "#42d4f4": "Cyan",
-        "#800000": "Maroon",
-        "#469990": "Teal",
-        "#bfef45": "Lime",
-        "#808000": "Olive",
-        "#ffd8b1": "Apricot",
-        "#aaffc3": "Mint",
-        "#c8ad7f": "Light French Beige",
+      "#e6194b": "Red",
+      "#ffffff": "White",
+      "#a9a9a9": "Dark Grey",
+      "#3cb44b": "Green",
+      "#ffe119": "Yellow",
+      "#f58231": "Orange",
+      "#dcbeff": "Lavender",
+      "#9a6324": "Brown",
+      "#fabebe": "Pink",
+      "#7f00ff": "Violet",
+      "#f032e6": "Magenta",
+      "#42d4f4": "Cyan",
+      "#800000": "Maroon",
+      "#469990": "Teal",
+      "#bfef45": "Lime",
+      "#808000": "Olive",
+      "#ffd8b1": "Apricot",
+      "#aaffc3": "Mint",
+      "#c8ad7f": "Light French Beige",
     };
     const formatPatternWithColorNames = (patternStr) => {
-        const pattern = JSON.parse(patternStr);
-        const formattedPattern = pattern.map((edge) => ({
-            color: colorMap[edge.color] || edge.color,
-            orientation: edge.orientation,
-        }));
-        return JSON.stringify(formattedPattern);
-    };
-    const checkNoPattern = (newConn, currentPairs) => {
-        let updatedPairs = [...currentPairs];
-        if (edgeState) {
-            const lastPair = updatedPairs[updatedPairs.length - 1];
-            if (lastPair && lastPair.length === 1) {
-                updatedPairs = [
-                    ...updatedPairs.slice(0, -1),
-                    [...lastPair, newConn],
-                ];
-            } else {
-                updatedPairs = [...updatedPairs, [edgeState, newConn]];
-            }
-        } else {
-            updatedPairs = [...updatedPairs, [newConn]];
-        }
+      const pattern = JSON.parse(patternStr);
+      const formattedPattern = pattern.map(edge => ({
+          color: colorMap[edge.color] || edge.color,
+          orientation: edge.orientation
+      }));
+      return JSON.stringify(formattedPattern);
+    }; 
+    const checkNoPattern = (newConn) => {
+        const allConnections = [...connections, newConn];
         const patternMap = new Map();
-        for (let pairIndex = 0; pairIndex < updatedPairs.length; pairIndex++) {
-            const pair = updatedPairs[pairIndex];
-            if (pair.length === 2) {
-                const [conn1, conn2] = pair;
-                const nodes1 = conn1.nodes;
-                const nodes2 = conn2.nodes;
-                const pattern = [];
-                pattern.push({
-                    color: conn1.color,
-                    orientation: getOrientation(nodes1[0]),
-                });
-                pattern.push({
-                    color: conn1.color,
-                    orientation: getOrientation(nodes1[1]),
-                });
-                pattern.push({
-                    color: conn2.color,
-                    orientation: getOrientation(nodes2[0]),
-                });
-                pattern.push({
-                    color: conn2.color,
-                    orientation: getOrientation(nodes2[1]),
-                });
-                const sortedPattern = pattern
-                    .sort((a, b) => a.color.localeCompare(b.color))
-                    .map((edge) => ({
-                        color: edge.color,
-                        orientation: edge.orientation,
-                    }));
-                const patternStr = JSON.stringify(sortedPattern);
-                const formattedPattern = formatPatternWithColorNames(patternStr)
-                console.log(
-                    `Pattern for pair ${pairIndex} (nodes ${nodes1[0]}→${nodes1[1]}, ${nodes2[0]}→${nodes2[1]}): ${formattedPattern}`
-                );
-                if (patternMap.has(patternStr)) {
-                    const otherPairIndex = patternMap.get(patternStr);
-                    console.log(
-                        `No-pattern failed: Pattern ${formattedPattern} repeats between pair ${otherPairIndex} & pair ${pairIndex}.`
-                    );
-                    return {
-                        passes: false,
-                        pattern: formattedPattern,
-                        pair1: otherPairIndex,
-                        pair2: pairIndex,
-                    };
+        const vertexConnections = new Map();
+        for (const conn of allConnections) {
+            const [v1, v2] = conn.nodes;
+            if (!vertexConnections.has(v1)) vertexConnections.set(v1, []);
+            if (!vertexConnections.has(v2)) vertexConnections.set(v2, []);
+            vertexConnections.get(v1).push({ node: v2, color: conn.color });
+            vertexConnections.get(v2).push({ node: v1, color: conn.color });
+        }
+        console.log("Vertex Connections Map:");
+        vertexConnections.forEach((connections, vertex) => {
+            console.log(`${vertex}:`, connections.map(c => 
+                `${c.node} (${colorMap[c.color] || c.color})`).join(", "));
+        });
+        for (const [vertex, neighbors] of vertexConnections.entries()) {
+            if (neighbors.length >= 2) {
+                for (let i = 0; i < neighbors.length - 1; i++) {
+                    for (let j = i + 1; j < neighbors.length; j++) {
+                        const neighbor1 = neighbors[i];
+                        const neighbor2 = neighbors[j];
+                        const pattern = [
+                            { color: neighbor1.color, orientation: getOrientation(neighbor1.node) },
+                            { color: neighbor1.color, orientation: getOrientation(vertex) },
+                            { color: neighbor2.color, orientation: getOrientation(vertex) },
+                            { color: neighbor2.color, orientation: getOrientation(neighbor2.node) }
+                        ];
+                        const patternSignature = JSON.stringify(pattern);
+                        if (!patternMap.has(patternSignature)) {
+                            patternMap.set(patternSignature, []);
+                        }
+                        const patternLocation = `${neighbor1.node}-${vertex}-${neighbor2.node}`;
+                        patternMap.get(patternSignature).push(patternLocation);
+                        if (patternMap.get(patternSignature).length > 1) {
+                            const formattedSignature = formatPatternWithColorNames(patternSignature);
+                            const locations = patternMap.get(patternSignature).join(", ");
+                            console.log(`No-pattern failed: Pattern ${formattedSignature} repeats at ${locations}.`);
+                            return { 
+                                passes: false, 
+                                pattern: formattedSignature,
+                                locations
+                            };
+                        }
+                    }
                 }
-                patternMap.set(patternStr, pairIndex);
             }
         }
+        console.log("Pattern Map:");
+        for (const [pattern, locations] of patternMap.entries()) {
+            const formattedPattern = formatPatternWithColorNames(pattern);
+            console.log(`Pattern ${formattedPattern} found at: ${locations.join(", ")}`);
+        }
+        
         return { passes: true };
     };
     if (edgeState) {
@@ -499,14 +488,12 @@ function App() {
             nodes: [node1, node2],
             color: newColor,
         };
-        const patternCheck = checkNoPattern(newConnection, connectionPairs);
+        const patternCheck = checkNoPattern(newConnection);
         if (!patternCheck.passes) {
             if (soundBool) {
                 errorAudio.play();
             }
-            setErrorMessage(
-                `No-pattern failed: Pattern ${patternCheck.pattern} repeats between pair ${patternCheck.pair1} & pair ${patternCheck.pair2}.`
-            );
+            setErrorMessage(`No-pattern failed: Pattern ${patternCheck.pattern} repeats at ${patternCheck.locations}.`);
             setSelectedNodes([]);
             return;
         }
@@ -535,14 +522,12 @@ function App() {
             nodes: [node1, node2],
             color: newColor,
         };
-        const patternCheck = checkNoPattern(newConnection, connectionPairs);
+        const patternCheck = checkNoPattern(newConnection);
         if (!patternCheck.passes) {
             if (soundBool) {
                 errorAudio.play();
             }
-            setErrorMessage(
-                `No-pattern failed: Pattern ${patternCheck.pattern} repeats between pair ${patternCheck.pair1} & pair ${patternCheck.pair2}.`
-            );
+            setErrorMessage(`No-pattern failed: Pattern ${patternCheck.pattern} repeats at ${patternCheck.locations}.`);
             setSelectedNodes([]);
             return;
         }
