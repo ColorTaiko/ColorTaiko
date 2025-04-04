@@ -264,7 +264,7 @@ function App() {
       // Play click audio if sound is enabled.
       if (soundBool) clickAudio.play();
       if(selectedLevel == null) {
-        setErrorMessage("Please select a level & try again!!!!")
+        setErrorMessage("Please select a level & try again!")
       }
       else {
       // If the node is already selected, deselect it & clear highlights.
@@ -287,7 +287,7 @@ function App() {
           const svgRect = svgRef.current.getBoundingClientRect();
           const startX = nodeRect.left + nodeRect.width / 2 - svgRect.left;
           const startY = nodeRect.top + nodeRect.height / 2 - svgRect.top;
-          const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
           line.setAttribute("x1", startX);
           line.setAttribute("y1", startY);
           line.setAttribute("x2", startX);
@@ -476,9 +476,8 @@ function App() {
         console.log("Pattern Map:");
         for (const [pattern, locations] of patternMap.entries()) {
             const formattedPattern = formatPatternWithColorNames(pattern);
-            console.log(`Pattern ${formattedPattern} found at: ${locations.join(", ")}`);
+            console.log(`Pattern ${formattedPattern} found at: ${locations.join(", ")}.`);
         }
-        
         return { passes: true };
     };
     if (edgeState) {
