@@ -389,63 +389,61 @@ function App() {
     let newColor;
     const getOrientation = (node) => isTopNode(node) ? 'out' : 'in';
     const colorMap = {
-        "#e6194b": "Red", "#ffffff": "White", "#a9a9a9": "Dark Grey", "#3cb44b": "Green",
-        "#ffe119": "Yellow", "#f58231": "Orange", "#dcbeff": "Lavender", "#9a6324": "Brown",
-        "#fabebe": "Pink", "#7f00ff": "Violet", "#f032e6": "Magenta", "#42d4f4": "Cyan",
-        "#800000": "Maroon", "#469990": "Teal", "#bfef45": "Lime", "#808000": "Olive",
-        "#ffd8b1": "Apricot", "#aaffc3": "Mint", "#c8ad7f": "Light French Beige",
+        "#e6194b": "Red",
+        "#ffffff": "White",
+        "#a9a9a9": "Dark Grey",
+        "#3cb44b": "Green",
+        "#ffe119": "Yellow",
+        "#f58231": "Orange",
+        "#dcbeff": "Lavender",
+        "#9a6324": "Brown",
+        "#fabebe": "Pink",
+        "#7f00ff": "Violet",
+        "#f032e6": "Magenta",
+        "#42d4f4": "Cyan",
+        "#800000": "Maroon",
+        "#469990": "Teal",
+        "#bfef45": "Lime",
+        "#808000": "Olive",
+        "#ffd8b1": "Apricot",
+        "#aaffc3": "Mint",
+        "#c8ad7f": "Light French Beige",
     };
-    const formatPatternWithColorNames = (patternStr) => {
-        const pattern = JSON.parse(patternStr);
-        const formattedPattern = pattern.map(edge => ({
-            color: colorMap[edge.color] || edge.color,
-            orientation: edge.orientation
-        }));
-        return JSON.stringify(formattedPattern);
-    };
+    const patternTracker = new Map();
     const checkNoPattern = (newConn) => {
-        const vertexEdges = new Map();
-        const addEdge = (vertex, color, orientation) => {
-            if (!vertexEdges.has(vertex)) vertexEdges.set(vertex, []);
-            vertexEdges.get(vertex).push({ color, orientation });
-        };
+        const tempPatternTracker = new Map();
         for (const pair of connectionPairs) {
             for (const conn of pair) {
                 const [v1, v2] = conn.nodes;
-                addEdge(v1, conn.color, getOrientation(v1));
-                addEdge(v2, conn.color, getOrientation(v2));
+                const orientation1 = getOrientation(v1);
+                const orientation2 = getOrientation(v2);
+                const pattern1 = `${orientation1},${colorMap[conn.color] || conn.color}`;
+                const pattern2 = `${orientation2},${colorMap[conn.color] || conn.color}`;
+                if (!tempPatternTracker.has(v1)) tempPatternTracker.set(v1, new Set());
+                if (!tempPatternTracker.has(v2)) tempPatternTracker.set(v2, new Set());
+                tempPatternTracker.get(v1).add(pattern1);
+                tempPatternTracker.get(v2).add(pattern2);
             }
         }
-        addEdge(newConn.nodes[0], newConn.color, getOrientation(newConn.nodes[0]));
-        addEdge(newConn.nodes[1], newConn.color, getOrientation(newConn.nodes[1]));
-        const tripletPatterns = [];
-        for (const [vertex, edges] of vertexEdges) {
-            const inEdges = edges.filter(e => e.orientation === 'in');
-            const outEdges = edges.filter(e => e.orientation === 'out');
-            for (const inEdge of inEdges) {
-                for (const outEdge of outEdges) {
-                    const pattern = {
-                        vertex,
-                        pattern: [
-                            { orientation: 'in', color: inEdge.color },
-                            { orientation: 'out', color: outEdge.color }
-                        ]
-                    };
-                    tripletPatterns.push(pattern);
-                }
-            }
-        }
-        const patternMap = new Map();
-        for (const { vertex, pattern } of tripletPatterns) {
-            const patternStr = JSON.stringify(pattern);
-            if (!patternMap.has(patternStr)) {
-                patternMap.set(patternStr, new Set([vertex]));
-            } else {
-                const vertices = patternMap.get(patternStr);
-                if (!vertices.has(vertex)) {
-                    const formatted = formatPatternWithColorNames(patternStr);
-                    console.log(`No-pattern failed: Pattern ${formatted} repeated at vertex ${vertex}`);
-                    return { passes: false, pattern: formatted };
+        const [newV1, newV2] = newConn.nodes;
+        const newOrientation1 = getOrientation(newV1);
+        const newOrientation2 = getOrientation(newV2);
+        const newColorName = colorMap[newConn.color] || newConn.color;
+        const newPattern1 = `${newOrientation1},${newColorName}`;
+        const newPattern2 = `${newOrientation2},${newColorName}`;
+        if (!tempPatternTracker.has(newV1)) tempPatternTracker.set(newV1, new Set());
+        if (!tempPatternTracker.has(newV2)) tempPatternTracker.set(newV2, new Set());
+        tempPatternTracker.get(newV1).add(newPattern1);
+        tempPatternTracker.get(newV2).add(newPattern2);
+        for (const [vertex, patterns] of tempPatternTracker) {
+            if (patterns.size >= 2) {
+                const sortedPatterns = Array.from(patterns).sort();
+                for (let i = 0; i < sortedPatterns.length - 1; i++) {
+                    if (sortedPatterns[i] === sortedPatterns[i + 1]) {
+                        console.log(`No-pattern failed: Duplicate pattern found at vertex ${vertex}`);
+                        console.log(`Pattern: ${sortedPatterns[i]}`);
+                        return { passes: false, pattern: sortedPatterns[i] };
+                    }
                 }
             }
         }
@@ -469,9 +467,12 @@ function App() {
         setConnectionPairs((prevPairs) => {
             const lastPair = prevPairs[prevPairs.length - 1];
             let updatedPairs;
-            // If the last pair has 1 connection, complete it
             if (lastPair && lastPair.length === 1) {
-                updatedPairs = [...prevPairs.slice(0, -1), [...lastPair, newConnection]];
+                // If the last pair has 1 connection, complete it.
+                updatedPairs = [
+                    ...prevPairs.slice(0, -1),
+                    [...lastPair, newConnection],
+                ];
             } else {
                 // Otherwise, create a new pair.
                 updatedPairs = [...prevPairs, [edgeState, newConnection]];
