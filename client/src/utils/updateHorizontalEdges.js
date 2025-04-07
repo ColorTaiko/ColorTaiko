@@ -157,6 +157,7 @@ export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientat
 
             // orientation swap; delete old connection
             if (horiEdgesRef.current.get(ai)[1].has(bi)) {
+              console.log("outgoing ori connection found", ai, bi)
               let oldColor = horiEdgesRef.current.get(ai)[1].get(bi);
               horiEdgesRef.current.get(ai)[1].delete(oldColor);
               horiEdgesRef.current.get(ai)[1].delete(bi);
@@ -164,8 +165,10 @@ export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientat
             }
             
             // if nodeB is a seen node, and the color got merged
+            // horiEdgesRef.current.get(ai)[0].has(bi) && 
             if (horiEdgesRef.current.get(ai)[0].get(bi) != color) { 
               // delete the old color of nodeA -> nodeB
+              console.log("outgoing color merge found", ai, bi) 
               let oldColor = horiEdgesRef.current.get(ai)[0].get(bi);
               horiEdgesRef.current.get(ai)[0].delete(oldColor);
               horiEdgesRef.current.get(ai)[0].delete(bi);
@@ -175,13 +178,14 @@ export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientat
             // set color of the connection, nodeA --[newColor]--> nodeB
             horiEdgesRef.current.get(ai)[0].set(bi, color);
             // newColor already exists in another outgoing connection
-            if (foldFound == 0 && !nodesFlipped && (!colorMerged || horiEdgesRef.current.get(ai)[0].has(color)) && horiEdgesRef.current.get(ai)[0].get(color) != bi) { 
+            if (foldFound == 0 && !nodesFlipped && (!colorMerged) && horiEdgesRef.current.get(ai)[0].get(color) != bi) { 
               console.log("1: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
               // alert("1: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
               foldsFound.push(ai, bi)
               foldFound = 1;
 
             } else { // newColor is a new outgoing color for nodeA
+              console.log("new color made", ai, bi)
               horiEdgesRef.current.get(ai)[0].set(color, bi);
             }
           // nodeA is an unseen node, initialize its dictionaries
@@ -198,6 +202,7 @@ export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientat
             let nodesFlipped = 0;
             // orientation swap; delete old connection
             if (horiEdgesRef.current.get(bi)[0].has(ai)) {
+              console.log("incoming ori connection found", ai, bi)
               let oldColor = horiEdgesRef.current.get(bi)[0].get(ai);
               horiEdgesRef.current.get(bi)[0].delete(oldColor);
               horiEdgesRef.current.get(bi)[0].delete(ai);
@@ -205,8 +210,10 @@ export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientat
             }
 
             // if nodeA is a seen node, and the color got merged
+            // horiEdgesRef.current.get(bi)[1].has(ai) && 
             if (horiEdgesRef.current.get(bi)[1].get(ai) != color) { 
               // delete the old color of nodeA -> nodeB
+              console.log("incoming color merge found", ai, bi)
               let oldColor = horiEdgesRef.current.get(bi)[1].get(ai);
               horiEdgesRef.current.get(bi)[1].delete(oldColor);
               horiEdgesRef.current.get(bi)[1].delete(ai);
@@ -215,12 +222,13 @@ export const updateHorizontalEdges = (connectionPairs, horiEdgesRef, topOrientat
             // set color of the connection, nodeA --[newColor]--> nodeB
             horiEdgesRef.current.get(bi)[1].set(ai, color);
             // newColor already exists in another outgoing connection
-            if (foldFound == 0 && !nodesFlipped && (!colorMerged || horiEdgesRef.current.get(bi)[1].has(color)) && horiEdgesRef.current.get(bi)[1].get(color) != ai) { 
+            if (foldFound == 0 && !nodesFlipped && (!colorMerged) && horiEdgesRef.current.get(bi)[1].get(color) != ai) { 
               console.log("2: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
               // alert("2: Fold found at", ai, " ", bi, "; Undo to remove the fold.");
               foldsFound.push(ai, bi)
               foldFound = 1
             } else { // newColor is a new outgoing color for nodeA
+              console.log("incoming new color made", ai, bi)
               horiEdgesRef.current.get(bi)[1].set(color, ai);
             }
           // nodeA is an unseen node, initialize its dictionaries

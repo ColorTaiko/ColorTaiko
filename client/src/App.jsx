@@ -288,7 +288,8 @@ function App() {
     if (latestPair && latestPair.length === 2) {
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
       if(level === "Level 2") {
-        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove);
+        // handles orientation swaps
+        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove, horiEdgesRef);
         if(a == -1){
           setErrorMessage("Orientation condition failed!");
           setSelectedNodes([]);
@@ -296,23 +297,24 @@ function App() {
           return;
         }
       }
-
+      // handles color swaps
       checkAndGroupConnections(
         latestPair,
         groupMapRef,
         setConnectionGroups,
         connections,
-        setConnections
-      );
-
-      updateHorizontalEdges(
-        connectionPairs,
+        setConnections,
         horiEdgesRef,
-        topOrientation,
-        botOrientation,
-        flippedConnectionsPerMove,
-        foldsFound
+        connectionPairs
       );
+      // updateHorizontalEdges(
+      //   connectionPairs,
+      //   horiEdgesRef,
+      //   topOrientation,
+      //   botOrientation,
+      //   flippedConnectionsPerMove,
+      //   foldsFound
+      // );
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
     // console.log("updated")

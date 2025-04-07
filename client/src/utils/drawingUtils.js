@@ -196,7 +196,7 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
       );
       if (topCurve) {
         // line.classList.add("flash-horizontal");
-        console.log("STN1 = ", sortedTopNode1, sortedTopNode2)
+        // console.log("STN1 = ", sortedTopNode1, sortedTopNode2)
         svgRef.current.appendChild(topCurve.path);
         svgRef.current.appendChild(topCurve.arrow);
         if (foldsFound.includes(sortedTopNode1) || foldsFound.includes(sortedTopNode2)) {
