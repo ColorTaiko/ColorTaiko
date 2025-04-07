@@ -388,9 +388,7 @@ function App() {
         if (soundBool) {
             errorAudio.play();
         }
-        setErrorMessage(
-            "2 vertical edges in each pair shouldn't share a common vertex."
-        );
+        setErrorMessage("2 vertical edges in each pair shouldn't share a common vertex.");
         setSelectedNodes([]);
         return;
     }
@@ -417,13 +415,11 @@ function App() {
       "#aaffc3": "Mint",
       "#c8ad7f": "Light French Beige",
     };
-    const formatPatternWithColorNames = (patternStr) => {
-      const pattern = JSON.parse(patternStr);
-      const formattedPattern = pattern.map(edge => ({
+    const formatPatternWithColorNames = (pattern) => {
+      return pattern.map(edge => ({
           color: colorMap[edge.color] || edge.color,
           orientation: edge.orientation
       }));
-      return JSON.stringify(formattedPattern);
     }; 
     const checkNoPattern = (newConn) => {
         const allConnections = [...connections, newConn];
@@ -433,40 +429,71 @@ function App() {
             const [v1, v2] = conn.nodes;
             if (!vertexConnections.has(v1)) vertexConnections.set(v1, []);
             if (!vertexConnections.has(v2)) vertexConnections.set(v2, []);
-            vertexConnections.get(v1).push({ node: v2, color: conn.color });
-            vertexConnections.get(v2).push({ node: v1, color: conn.color });
-        }
+            vertexConnections.get(v1).push({ 
+                node: v2, 
+                color: conn.color,
+                orientation: getOrientation(v1)
+            });
+            vertexConnections.get(v2).push({ 
+                node: v1, 
+                color: conn.color,
+                orientation: getOrientation(v2)
+            });
+        } 
         console.log("Vertex Connections Map:");
         vertexConnections.forEach((connections, vertex) => {
             console.log(`${vertex}:`, connections.map(c => 
-                `${c.node} (${colorMap[c.color] || c.color})`).join(", "));
+                `${c.node} (${colorMap[c.color] || c.color}, ${c.orientation})`).join(", "));
         });
-        for (const [vertex, neighbors] of vertexConnections.entries()) {
-            if (neighbors.length >= 2) {
-                for (let i = 0; i < neighbors.length - 1; i++) {
-                    for (let j = i + 1; j < neighbors.length; j++) {
-                        const neighbor1 = neighbors[i];
-                        const neighbor2 = neighbors[j];
+        for (const [vertex, edges] of vertexConnections.entries()) {
+            if (edges.length >= 2) {
+                for (let i = 0; i < edges.length - 1; i++) {
+                    for (let j = i + 1; j < edges.length; j++) {
+                        const edge1 = edges[i];
+                        const edge2 = edges[j];
+                        if (edge1.color === edge2.color) continue;
+                        if (edge1.orientation === edge2.orientation) continue;
                         const pattern = [
-                            { color: neighbor1.color, orientation: getOrientation(neighbor1.node) },
-                            { color: neighbor1.color, orientation: getOrientation(vertex) },
-                            { color: neighbor2.color, orientation: getOrientation(vertex) },
-                            { color: neighbor2.color, orientation: getOrientation(neighbor2.node) }
-                        ];
-                        const patternSignature = JSON.stringify(pattern);
-                        if (!patternMap.has(patternSignature)) {
-                            patternMap.set(patternSignature, []);
+                            { color: edge1.color, orientation: edge1.orientation },
+                            { color: edge2.color, orientation: edge2.orientation }
+                        ].sort((a, b) => 
+                            a.color.localeCompare(b.color) || 
+                            a.orientation.localeCompare(b.orientation)
+                        );
+                        const patternKey = JSON.stringify(pattern);
+                        if (!patternMap.has(patternKey)) {
+                            patternMap.set(patternKey, []);
                         }
-                        const patternLocation = `${neighbor1.node}-${vertex}-${neighbor2.node}`;
-                        patternMap.get(patternSignature).push(patternLocation);
-                        if (patternMap.get(patternSignature).length > 1) {
-                            const formattedSignature = formatPatternWithColorNames(patternSignature);
-                            const locations = patternMap.get(patternSignature).join(", ");
-                            console.log(`No-pattern failed: Pattern ${formattedSignature} repeats at ${locations}.`);
+                        const patternInfo = {
+                            centralVertex: vertex,
+                            edge1: {
+                                node: edge1.node,
+                                color: edge1.color,
+                                orientation: edge1.orientation
+                            },
+                            edge2: {
+                                node: edge2.node,
+                                color: edge2.color,
+                                orientation: edge2.orientation
+                            }
+                        };
+                        patternMap.get(patternKey).push(patternInfo);
+                        if (patternMap.get(patternKey).length > 1) {
+                            const formattedPattern = formatPatternWithColorNames(pattern);
+                            const locations = patternMap.get(patternKey)
+                                .map(info => {
+                                    const color1 = colorMap[info.edge1.color] || info.edge1.color;
+                                    const color2 = colorMap[info.edge2.color] || info.edge2.color;
+                                    return `Central vertex ${info.centralVertex} with edges to:
+                                    - ${info.edge1.node} (${color1}, ${info.edge1.orientation})
+                                    - ${info.edge2.node} (${color2}, ${info.edge2.orientation})`;
+                                })
+                                .join("\nAND\n");
+                            console.log(`No-pattern failed: Pattern ${JSON.stringify(formattedPattern)} repeats at:\n${locations}.`);
                             return { 
                                 passes: false, 
-                                pattern: formattedSignature,
-                                locations
+                                pattern: formattedPattern,
+                                locations: patternMap.get(patternKey)
                             };
                         }
                     }
@@ -475,8 +502,8 @@ function App() {
         }
         console.log("Pattern Map:");
         for (const [pattern, locations] of patternMap.entries()) {
-            const formattedPattern = formatPatternWithColorNames(pattern);
-            console.log(`Pattern ${formattedPattern} found at: ${locations.join(", ")}.`);
+            const formattedPattern = formatPatternWithColorNames(JSON.parse(pattern));
+            console.log(`Pattern ${JSON.stringify(formattedPattern)} found at:`, locations);
         }
         return { passes: true };
     };
@@ -492,7 +519,15 @@ function App() {
             if (soundBool) {
                 errorAudio.play();
             }
-            setErrorMessage(`No-pattern failed: Pattern ${patternCheck.pattern} repeats at ${patternCheck.locations}.`);
+            const errorDetails = patternCheck.locations.map(loc => {
+                const color1 = colorMap[loc.edge1.color] || loc.edge1.color;
+                const color2 = colorMap[loc.edge2.color] || loc.edge2.color;
+                return `Central vertex ${loc.centralVertex} with edges to:
+                - ${loc.edge1.node} (${color1}, ${loc.edge1.orientation})
+                - ${loc.edge2.node} (${color2}, ${loc.edge2.orientation})`;
+            }).join("\nAND\n");
+            
+            setErrorMessage(`No-pattern failed: Pattern ${JSON.stringify(patternCheck.pattern)} repeats at:\n${errorDetails}`);
             setSelectedNodes([]);
             return;
         }
@@ -501,13 +536,11 @@ function App() {
             const lastPair = prevPairs[prevPairs.length - 1];
             let updatedPairs;
             if (lastPair && lastPair.length === 1) {
-                // If the last pair has 1 connection, complete it.
                 updatedPairs = [
                     ...prevPairs.slice(0, -1),
                     [...lastPair, newConnection],
                 ];
             } else {
-                // Otherwise, create a new pair.
                 updatedPairs = [...prevPairs, [edgeState, newConnection]];
             }
             console.log("Updated connection pairs:", updatedPairs);
@@ -526,12 +559,19 @@ function App() {
             if (soundBool) {
                 errorAudio.play();
             }
-            setErrorMessage(`No-pattern failed: Pattern ${patternCheck.pattern} repeats at ${patternCheck.locations}.`);
+            const errorDetails = patternCheck.locations.map(loc => {
+                const color1 = colorMap[loc.edge1.color] || loc.edge1.color;
+                const color2 = colorMap[loc.edge2.color] || loc.edge2.color;
+                return `Central vertex ${loc.centralVertex} with edges to:
+                - ${loc.edge1.node} (${color1}, ${loc.edge1.orientation})
+                - ${loc.edge2.node} (${color2}, ${loc.edge2.orientation})`;
+            }).join("\nAND\n");
+            
+            setErrorMessage(`No-pattern failed: Pattern ${JSON.stringify(patternCheck.pattern)} repeats at:\n${errorDetails}`);
             setSelectedNodes([]);
             return;
         }
         setConnections([...connections, newConnection]);
-        // Create a new pair & add to the connection pairs.
         setConnectionPairs([...connectionPairs, [newConnection]]);
         console.log("New connection:", newConnection);
         console.log("Current connection pairs:", connectionPairs);
