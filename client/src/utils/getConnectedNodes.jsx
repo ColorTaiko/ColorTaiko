@@ -15,3 +15,8 @@ export const getConnectedNodes = (selectedNode, connectionPairs) => {
       )
     );
 };
+
+// make version of this function using sets with no color
+// call this function in the for each loop for the grouptomerge
+// create list of horizontal connections whose color you need to swap
+// pass that into the updateHorizontalEdges function to swap the color

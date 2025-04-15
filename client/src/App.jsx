@@ -40,7 +40,7 @@ function App() {
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
   const horiEdgesRef = useRef(new Map());
-  const flippedConnectionsPerMove = useState([]);
+  const [flippedConnectionsPerMove, setFCPM] = useState([]);
   const [foldsFound, setFoldsFound] = useState([]);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
@@ -289,7 +289,7 @@ function App() {
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
       if(level === "Level 2") {
         // handles orientation swaps
-        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove, horiEdgesRef);
+        const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove);
         if(a == -1){
           setErrorMessage("Orientation condition failed!");
           setSelectedNodes([]);
@@ -304,17 +304,17 @@ function App() {
         setConnectionGroups,
         connections,
         setConnections,
-        horiEdgesRef,
         connectionPairs
       );
-      // updateHorizontalEdges(
-      //   connectionPairs,
-      //   horiEdgesRef,
-      //   topOrientation,
-      //   botOrientation,
-      //   flippedConnectionsPerMove,
-      //   foldsFound
-      // );
+      updateHorizontalEdges(
+        latestPair,
+        connectionPairs,
+        horiEdgesRef,
+        topOrientation,
+        botOrientation,
+        flippedConnectionsPerMove,
+        foldsFound
+      );
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
     // console.log("updated")
