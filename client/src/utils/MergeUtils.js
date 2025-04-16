@@ -1,4 +1,5 @@
 import { getConnectedNodes } from "./getConnectedNodes";
+import { updateHorizontalEdges } from "./updateHorizontalEdges";
 
 export const checkAndGroupConnections = (
     newPair,
@@ -6,8 +7,19 @@ export const checkAndGroupConnections = (
     setConnectionGroups,
     connections,
     setConnections,
-    connectionPairs
+    connectionPairs,
+    mergedColornodesPerMove,
+    setCurrMergeColor,
+    currMergeColor,
+    topOrientation,
+    botOrientation,
+    flippedConnectionsPerMove,
+    foldsFound,
+    horiEdgesRef
   ) => {
+    // clear the list containing all color swapped nodes
+    mergedColornodesPerMove.length = 0;
+
     const [firstConnection, secondConnection] = newPair;
     const [top1, bottom1] = firstConnection.nodes;
     const [top2, bottom2] = secondConnection.nodes;
@@ -40,7 +52,6 @@ export const checkAndGroupConnections = (
       mergedGroup.nodes = Array.from(
         new Set([...mergedGroup.nodes, top1, top2, bottom1, bottom2])
       );
-  
       if (matchingGroups.length > 1) {
         const groupToMerge = matchingGroups[1];
         // color merging occurs here
@@ -48,7 +59,13 @@ export const checkAndGroupConnections = (
           // console.log("cnzzsbd ", connection)
           // console.log("slbbc ", getConnectedNodes(connection.nodes[0], connectionPairs))
           connection.color = mergedGroup.color;
+          // console.log("connn = ", connection)
+          mergedColornodesPerMove.add(connection.nodes[0])
+          mergedColornodesPerMove.add(connection.nodes[1])
         });
+        setCurrMergeColor(mergedGroup.color);
+        currMergeColor = mergedGroup.color;
+        console.log("Initting mergeColor as ", currMergeColor)
         mergedGroup.nodes = Array.from(
           new Set([...mergedGroup.nodes, ...groupToMerge.nodes])
         );
@@ -88,5 +105,16 @@ export const checkAndGroupConnections = (
       setConnectionGroups((prevGroups) => [...prevGroups, newGroup]);
     }
     setConnections([...connections]);
+    updateHorizontalEdges(
+      newPair,
+      connectionPairs,
+      horiEdgesRef,
+      topOrientation,
+      botOrientation,
+      flippedConnectionsPerMove,
+      foldsFound,
+      mergedColornodesPerMove,
+      currMergeColor
+    );
   };
   

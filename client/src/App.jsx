@@ -41,6 +41,8 @@ function App() {
   const botOrientation = useRef(new Map());
   const horiEdgesRef = useRef(new Map());
   const [flippedConnectionsPerMove, setFCPM] = useState([]);
+  const [mergedColornodesPerMove, setMCPM] = useState(new Set());
+  const [currMergeColor, setCurrMergeColor] = useState("");
   const [foldsFound, setFoldsFound] = useState([]);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
@@ -179,12 +181,6 @@ function App() {
     if (foldsFound.length > 0) {
       setErrorMessage("No fold condition failed!\nHint: Look for the flashing edges.")
     }
-    // console.log("Hello");
-    // console.log("connections: ", connections);
-    // console.log("connection pairs: ", connectionPairs);
-    // console.log("connection groups: ", connectionGroups);
-    // checkNoFold(svgRef, connections, connectionPairs, topOrientation, botOrientation, horiEdgesRef);
-    // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);
 
   /**
@@ -286,7 +282,6 @@ function App() {
     // }
 
     if (latestPair && latestPair.length === 2) {
-      // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
       if(level === "Level 2") {
         // handles orientation swaps
         const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove);
@@ -304,17 +299,27 @@ function App() {
         setConnectionGroups,
         connections,
         setConnections,
-        connectionPairs
-      );
-      updateHorizontalEdges(
-        latestPair,
         connectionPairs,
-        horiEdgesRef,
+        mergedColornodesPerMove,
+        setCurrMergeColor,
+        currMergeColor,
         topOrientation,
         botOrientation,
         flippedConnectionsPerMove,
-        foldsFound
+        foldsFound,
+        horiEdgesRef
       );
+      // updateHorizontalEdges(
+      //   latestPair,
+      //   connectionPairs,
+      //   horiEdgesRef,
+      //   topOrientation,
+      //   botOrientation,
+      //   flippedConnectionsPerMove,
+      //   foldsFound,
+      //   mergedColornodesPerMove,
+      //   currMergeColor
+      // );
       // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
     // console.log("updated")
