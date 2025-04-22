@@ -179,7 +179,7 @@ function App() {
     drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, { color: "red", size: 10 },
       foldsFound);
     if (foldsFound.length > 0) {
-      setErrorMessage("No fold condition failed!\nHint: Look for the flashing edges.")
+      setErrorMessage("No-fold condition failed!\nHint: Look for the flashing edges.")
     }
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);
 

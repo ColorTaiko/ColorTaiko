@@ -82,7 +82,6 @@ export const checkAndGroupConnections = (
         });
       }
   
-  
       groupMapRef.current.set(topCombination, mergedGroup);
       groupMapRef.current.set(bottomCombination, mergedGroup);
       // console.log('ok63');
