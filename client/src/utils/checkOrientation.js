@@ -1,106 +1,77 @@
-export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrientation) => {
+export const checkOrientation = (
+    newPair,
+    groupMapRef,
+    topOrientation,
+    botOrientation
+  ) => {
     if (newPair.length !== 2) return;
-
-    const [firstConnection, secondConnection] = newPair;
-    let [top1_, bottom1_] = firstConnection.nodes;
-    let [top2_, bottom2_] = secondConnection.nodes;
-
-    const getNodeNumber = (nodeId) => {
-        const parts = nodeId.split('-');
-        return parseInt(parts[1], 10);
-    };
-    
-
-    const topCombination = [top1_, top2_].sort().join(',');
-    const bottomCombination = [bottom1_, bottom2_].sort().join(',');
-
-    const top1 = getNodeNumber(top1_)
-    const top2 = getNodeNumber(top2_)
-    const bottom1 = getNodeNumber(bottom1_)
-    const bottom2 = getNodeNumber(bottom2_)
-
-    /*case 1
-    */
-    if (!topOrientation.current.has(topCombination) && !botOrientation.current.has(bottomCombination)) {
-        botOrientation.current.set(bottomCombination, "right");
-        topOrientation.current.set(topCombination, "right");
-
-        if(top1 > top2) {
-            topOrientation.current.set(topCombination, "left");
-        }
-        if(bottom1 > bottom2) {
-            botOrientation.current.set(bottomCombination, "left");
-        }
-        return 0;
+  
+    const [c1, c2] = newPair;
+    let [t1_, b1_] = c1.nodes;
+    let [t2_, b2_] = c2.nodes;
+  
+    const num = id => parseInt(id.split('-')[1], 10);
+  
+    const topCombo = [t1_, t2_].sort().join(',');
+    const botCombo = [b1_, b2_].sort().join(',');
+  
+    const t1 = num(t1_), t2 = num(t2_);
+    const b1 = num(b1_), b2 = num(b2_);
+  
+    // case 1: neither exists yet
+    if (!topOrientation.current.has(topCombo) && !botOrientation.current.has(botCombo)) {
+      topOrientation.current.set(topCombo, 'out');
+      botOrientation.current.set(botCombo, 'out');
+  
+      if (t1 > t2) topOrientation.current.set(topCombo, 'in');
+      if (b1 > b2) botOrientation.current.set(botCombo, 'in');
+      return 0;
     }
-
-    /*case 2
-    */
-    if(!botOrientation.current.get(bottomCombination) && topOrientation.current.get(topCombination)) {
-        if(((top1 > top2) && (bottom1 > bottom2))
-        || ((top1 < top2) && (bottom1 < bottom2))) {
-            botOrientation.current.set(bottomCombination, topOrientation.current.get(topCombination));
-        } else if(
-        (   (top1 > top2) && (bottom1 < bottom2))
-        || ((top1 < top2) && (bottom1 > bottom2))
-        ) {
-            botOrientation.current.set(bottomCombination, 
-            topOrientation.current.get(topCombination) === "right" ? "left" : "right");
-        }
-        return 0;
-    } 
-    /*case 3
-    */
-   else if (botOrientation.current.get(bottomCombination) && !topOrientation.current.get(topCombination)) {
-        if(((top1 > top2) && (bottom1 > bottom2))
-        || ((top1 < top2) && (bottom1 < bottom2))) {
-            topOrientation.current.set(topCombination, botOrientation.current.get(bottomCombination));
-        } else if(
-        (   (top1 > top2) && (bottom1 < bottom2))
-        || ((top1 < top2) && (bottom1 > bottom2))
-        ) {
-            topOrientation.current.set(topCombination, 
-            botOrientation.current.get(bottomCombination) === "right" ? "left" : "right");
-        }
-        return 0;
+  
+    // case 2: top exists, bottom missing
+    if (topOrientation.current.get(topCombo) && !botOrientation.current.get(botCombo)) {
+      const topDir = topOrientation.current.get(topCombo);
+      const same = (t1>t2 && b1>b2) || (t1<t2 && b1<b2);
+      const flipped = topDir==='out' ? 'in' : 'out';
+      botOrientation.current.set(botCombo, same ? topDir : flipped);
+      return 0;
     }
-
-    /*case 4
-    */
-    if (topOrientation.current.get(topCombination) && botOrientation.current.get(bottomCombination)) {
-        const topGroup = groupMapRef.current.get(topCombination);
-        const bottomGroup = groupMapRef.current.get(bottomCombination);
-    
-        if (!topGroup || !bottomGroup) {
-            console.error("One of the groups is missing in groupMapRef");
-            return 0;
-        }
-        const topDir = topOrientation.current.get(topCombination);
-        const botDir = botOrientation.current.get(bottomCombination);
-    
-        const isCrossed = (bottom1 < bottom2 && top1 > top2) || (bottom1 > bottom2 && top1 < top2);
-        const sameDirection = (topDir === botDir);
-    
-        const shouldFlip = (sameDirection && isCrossed) || (!sameDirection && !isCrossed);
-    
-        if (shouldFlip) {
-            if (topGroup === bottomGroup) {
-                return -1;
-            }
-    
-            for (const combo of topGroup.combinations) {
-                if (topOrientation.current.has(combo)) {
-                    const dir = topOrientation.current.get(combo);
-                    topOrientation.current.set(combo, dir === "right" ? "left" : "right");
-                }
-                if (botOrientation.current.has(combo)) {
-                    const dir = botOrientation.current.get(combo);
-                    botOrientation.current.set(combo, dir === "right" ? "left" : "right");
-                }
-            }
-        }
-    
-        return 0;
+  
+    // case 3: bottom exists, top missing
+    if (!topOrientation.current.get(topCombo) && botOrientation.current.get(botCombo)) {
+      const botDir = botOrientation.current.get(botCombo);
+      const same = (t1>t2 && b1>b2) || (t1<t2 && b1<b2);
+      const flipped = botDir==='out' ? 'in' : 'out';
+      topOrientation.current.set(topCombo, same ? botDir : flipped);
+      return 0;
     }
-};
-
+  
+    // case 4: both exist → maybe flip an entire group
+    if (topOrientation.current.get(topCombo) && botOrientation.current.get(botCombo)) {
+      const topDir = topOrientation.current.get(topCombo);
+      const botDir = botOrientation.current.get(botCombo);
+      const crossed = (b1<b2 && t1>t2) || (b1>b2 && t1<t2);
+      const sameDir = topDir === botDir;
+      const shouldFlip = (sameDir && crossed) || (!sameDir && !crossed);
+  
+      if (shouldFlip) {
+        // if they’re in the same group, that’s a hard violation
+        if (groupMapRef.current.get(topCombo) === groupMapRef.current.get(botCombo)) {
+          return -1;
+        }
+        // otherwise flip every combo in both groups
+        const flip = d => d==='out'?'in':'out';
+        for (let combo of groupMapRef.current.get(topCombo).combinations) {
+          if (topOrientation.current.has(combo)) {
+            topOrientation.current.set(combo, flip(topOrientation.current.get(combo)));
+          }
+          if (botOrientation.current.has(combo)) {
+            botOrientation.current.set(combo, flip(botOrientation.current.get(combo)));
+          }
+        }
+      }
+      return 0;
+    }
+  };
+  
+  

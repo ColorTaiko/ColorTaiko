@@ -7,7 +7,7 @@ import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes} from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { checkOrientation } from "./utils/checkOrientation";
-import { updateHorizontalEdges } from "./utils/drawingUtils";
+import { updateHorizontalEdges, buildTrioMap } from "./utils/drawingUtils";
 import { updateTrioMapOnEdgeChange } from "./utils/checkPattern";
 
 import SettingIconImage from "./assets/setting-icon.png";
