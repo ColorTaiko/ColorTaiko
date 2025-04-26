@@ -43,7 +43,7 @@ function App() {
   const [flippedConnectionsPerMove, setFCPM] = useState([]);
   const [mergedColornodesPerMove, setMCPM] = useState(new Set());
   const [currMergeColor, setCurrMergeColor] = useState("");
-  const [foldsFound, setFoldsFound] = useState([]);
+  const [foldsFound, setFoldsFound] = useState(new Set());
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [startNode, setStartNode] = useState(null);
@@ -178,7 +178,7 @@ function App() {
   useEffect(() => {
     drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, { color: "red", size: 10 },
       foldsFound);
-    if (foldsFound.length > 0) {
+    if (foldsFound.size > 0) {
       setErrorMessage("No-fold condition failed!\nHint: Look for the flashing edges.")
     }
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);

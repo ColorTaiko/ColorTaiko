@@ -110,10 +110,7 @@ export const checkAndGroupConnections = (
       horiEdgesRef,
       topOrientation,
       botOrientation,
-      flippedConnectionsPerMove,
       foldsFound,
-      mergedColornodesPerMove,
-      currMergeColor
     );
   };
   

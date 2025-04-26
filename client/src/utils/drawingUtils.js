@@ -199,7 +199,7 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
         // console.log("STN1 = ", sortedTopNode1, sortedTopNode2)
         svgRef.current.appendChild(topCurve.path);
         svgRef.current.appendChild(topCurve.arrow);
-        if (foldsFound.includes(sortedTopNode1) || foldsFound.includes(sortedTopNode2)) {
+        if (foldsFound.has(sortedTopNode1) && foldsFound.has(sortedTopNode2)) {
           topCurve.path.classList.add("flash-horizontal");
         }
       }
@@ -213,7 +213,7 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
       if (bottomCurve) {
         svgRef.current.appendChild(bottomCurve.path);
         svgRef.current.appendChild(bottomCurve.arrow);
-        if (foldsFound.includes(sortedBottomNode1) || foldsFound.includes(sortedBottomNode2)) {
+        if (foldsFound.has(sortedBottomNode1) && foldsFound.has(sortedBottomNode2)) {
           bottomCurve.path.classList.add("flash-horizontal"); 
         }
       }
