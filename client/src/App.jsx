@@ -164,7 +164,7 @@ function App() {
    * Sets welcome message visibility based on the number of nodes in each row.
    */
   useEffect(() => {
-    foldsFound.length = 0;
+    foldsFound.clear();
     setWelcomeMessage0(true);
     if (topRowCount === 1 && bottomRowCount === 1 && selectedLevel != null) {
       setWelcomeMessage(true);
@@ -282,7 +282,7 @@ function App() {
     // }
 
     if (latestPair && latestPair.length === 2) {
-      if(level === "Level 2") {
+      if(level === "Level 2" || level === "Level 3") {
         // handles orientation swaps
         const a = checkOrientation(latestPair, groupMapRef, topOrientation, botOrientation, flippedConnectionsPerMove);
         if(a == -1){
@@ -300,33 +300,13 @@ function App() {
         connections,
         setConnections,
         connectionPairs,
-        mergedColornodesPerMove,
-        setCurrMergeColor,
-        currMergeColor,
         topOrientation,
         botOrientation,
-        flippedConnectionsPerMove,
         foldsFound,
-        horiEdgesRef
+        horiEdgesRef,
+        level
       );
-      // updateHorizontalEdges(
-      //   latestPair,
-      //   connectionPairs,
-      //   horiEdgesRef,
-      //   topOrientation,
-      //   botOrientation,
-      //   flippedConnectionsPerMove,
-      //   foldsFound,
-      //   mergedColornodesPerMove,
-      //   currMergeColor
-      // );
-      // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
     }
-    // console.log("updated")
-    // updateHorizontalEdges(connectionPairs, horiEdgesRef, topOrientation, botOrientation);
-    // console.log("topOrientation",topOrientation);
-    // console.log("botOrientation",botOrientation);
-    // console.log("groupMapRef",groupMapRef);
   }, [connectionPairs]);
 
   // useEffect(() => {
@@ -340,8 +320,6 @@ function App() {
   //     }
   //   }
 
-  //   console.log(topOrientation);
-  //   console.log(botOrientation);
   // }, [connectionPairs]);
 
   // useEffect(() => {
@@ -473,7 +451,7 @@ function App() {
     groupMapRef.current.clear();
     topOrientation.current.clear();
     botOrientation.current.clear();
-    console.log(connectionPairs);
+    // console.log(connectionPairs);
   };
 
   const handleSoundClick = () => {
@@ -660,6 +638,7 @@ function App() {
             </option>
             <option value="Level 1">Level 1</option>
             <option value="Level 2">Level 2</option>
+            <option value="Level 3">Level 3</option>
           </select>
         </div>
       ) : (

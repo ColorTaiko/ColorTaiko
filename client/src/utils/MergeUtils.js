@@ -8,18 +8,12 @@ export const checkAndGroupConnections = (
     connections,
     setConnections,
     connectionPairs,
-    mergedColornodesPerMove,
-    setCurrMergeColor,
-    currMergeColor,
     topOrientation,
     botOrientation,
-    flippedConnectionsPerMove,
     foldsFound,
-    horiEdgesRef
+    horiEdgesRef,
+    level
   ) => {
-    // clear the list containing all color swapped nodes
-    mergedColornodesPerMove.length = 0;
-
     const [firstConnection, secondConnection] = newPair;
     const [top1, bottom1] = firstConnection.nodes;
     const [top2, bottom2] = secondConnection.nodes;
@@ -30,14 +24,11 @@ export const checkAndGroupConnections = (
     const matchingGroups = [];
     const groupTop = groupMapRef.current.get(topCombination);
     const groupBottom = groupMapRef.current.get(bottomCombination);
-    //console.log('ok');
     if (groupBottom) {
-      //console.log('Group Bottom:', groupBottom);
       matchingGroups.push(groupBottom);
     }
     if (groupTop && groupTop !== groupBottom) matchingGroups.push(groupTop);
   
-    //console.log('Matching Groups:', matchingGroups);
     let mergedGroup = null;
     if (matchingGroups.length > 0) {
       mergedGroup = matchingGroups[0];
@@ -59,13 +50,7 @@ export const checkAndGroupConnections = (
           // console.log("cnzzsbd ", connection)
           // console.log("slbbc ", getConnectedNodes(connection.nodes[0], connectionPairs))
           connection.color = mergedGroup.color;
-          // console.log("connn = ", connection)
-          mergedColornodesPerMove.add(connection.nodes[0])
-          mergedColornodesPerMove.add(connection.nodes[1])
         });
-        setCurrMergeColor(mergedGroup.color);
-        currMergeColor = mergedGroup.color;
-        console.log("Initting mergeColor as ", currMergeColor)
         mergedGroup.nodes = Array.from(
           new Set([...mergedGroup.nodes, ...groupToMerge.nodes])
         );
@@ -74,7 +59,6 @@ export const checkAndGroupConnections = (
         );
         // console.log("mgp ", [...mergedGroup.pairs, ...groupToMerge.pairs]);
         mergedGroup.combinations = new Set([...mergedGroup.combinations, ...groupToMerge.combinations]);
-        // console.log("mgc ", mergedGroup)
         groupMapRef.current.forEach((group, key) => {
           if (group === groupToMerge) {
             groupMapRef.current.set(key, mergedGroup);
@@ -97,20 +81,22 @@ export const checkAndGroupConnections = (
         color: groupColor,
         combinations: new Set([topCombination, bottomCombination]),
       };
-      // console.log("NEW GROUP = ", newGroup)
       groupMapRef.current.set(topCombination, newGroup);
       groupMapRef.current.set(bottomCombination, newGroup);
   
       setConnectionGroups((prevGroups) => [...prevGroups, newGroup]);
     }
     setConnections([...connections]);
-    updateHorizontalEdges(
-      newPair,
-      connectionPairs,
-      horiEdgesRef,
-      topOrientation,
-      botOrientation,
-      foldsFound,
-    );
+
+    if (level === "Level 3") {
+      updateHorizontalEdges(
+        newPair,
+        connectionPairs,
+        horiEdgesRef,
+        topOrientation,
+        botOrientation,
+        foldsFound,
+      );
+    }
   };
   

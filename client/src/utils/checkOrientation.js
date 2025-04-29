@@ -24,7 +24,6 @@ export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrient
 
     /*case 1
     */
-   console.log("TOPO=", topOrientation)
    // if the top and bottom connection is new
     if (!topOrientation.current.has(topCombination) && !botOrientation.current.has(bottomCombination)) {
         botOrientation.current.set(bottomCombination, "right");
@@ -106,16 +105,12 @@ export const checkOrientation = (newPair, groupMapRef, topOrientation, botOrient
                 const topA = substrings[0];
                 const topB = substrings[1];
                 if (topOrientation.current.has(combo)) {
-                    console.log("flipping ", topA, " and ", topB)
                     const dir = topOrientation.current.get(combo);
-                    flippedConnectionsPerMove.push([topA, topB, dir]);
                     topOrientation.current.set(combo, dir === "right" ? "left" : "right");
 
                 }
                 if (botOrientation.current.has(combo)) {
-                    console.log("flipping ", topA, " and ", topB)
                     const dir = botOrientation.current.get(combo);
-                    flippedConnectionsPerMove.push([topA, topB, dir]);
                     botOrientation.current.set(combo, dir === "right" ? "left" : "right");
                 }
             }
