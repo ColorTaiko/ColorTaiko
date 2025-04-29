@@ -3,14 +3,14 @@ import LevelCard from "./components/LevelCard";
 import "./styles/title_page.css";
 
 const levels = [
-  { id: 1, name: "1", unlocked: true, xPercent: 50, yPercent: 10 },
-  { id: 2, name: "2", unlocked: true, xPercent: 50, yPercent: 30 },
-  { id: 3, name: "3NF", unlocked: true, xPercent: 50, yPercent: 50 },
-  { id: 4, name: "3.G4", unlocked: true, xPercent: 90, yPercent: 50 },
-  { id: 5, name: "4NF+NP", unlocked: true, xPercent: 30, yPercent: 70 },
-  { id: 6, name: "4.G4", unlocked: true, xPercent: 70, yPercent: 70 },
-  { id: 7, name: "5.NP+G4", unlocked: true, xPercent: 50, yPercent: 90 },
-  { id: 8, name: "5.NP+G6", unlocked: true, xPercent: 100, yPercent: 95 },
+  { id: 1, name: "Level 1", unlocked: true, xPercent: 50, yPercent: 10 },
+  { id: 2, name: "Level 2", unlocked: true, xPercent: 50, yPercent: 30 },
+  { id: 3, name: "Level 3.NF", unlocked: true, xPercent: 50, yPercent: 50 },
+  { id: 4, name: "Level 3.G4", unlocked: true, xPercent: 90, yPercent: 50 },
+  { id: 5, name: "Level 4.NF+NP", unlocked: false, xPercent: 30, yPercent: 70 },
+  { id: 6, name: "Level 4.G4", unlocked: false, xPercent: 70, yPercent: 70 },
+  { id: 7, name: "Level 5.NP+G4", unlocked: false, xPercent: 50, yPercent: 90 },
+  { id: 8, name: "Level 5.NP+G6", unlocked: false, xPercent: 100, yPercent: 95 },
   // add more levels with x/y positions
 ];
 
