@@ -2,6 +2,14 @@
 @import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap');
 
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+} /* added this for removing scroll bar on first page */
+
+
 * {
   padding: 0px;
   border: 0px;
@@ -9,7 +17,7 @@
 }
 
 body {
-  background-color: rgb(0, 0, 0);
+  background-color: black; /* changed to white from black */
   display: flex;
   justify-content: center;
   font-family: "Caveat Brush";

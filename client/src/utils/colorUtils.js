@@ -1,8 +1,6 @@
 export const generateColor = (currentColor, setCurrentColor, connectionPairs) => { 
   const colors = [
     '#e6194b', // red
-    '#ffffff', // white
-    '#a9a9a9', // grey
     '#3cb44b', // green
     '#ffe119', // yellow
     '#f58231', // orange
