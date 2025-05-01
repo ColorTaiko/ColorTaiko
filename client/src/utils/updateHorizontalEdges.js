@@ -1,7 +1,10 @@
+import { drawConnections } from "./drawingUtils";
+
 export const updateHorizontalEdges = (
   latestPair, connectionPairs, horiEdgesRef, topOrientation, botOrientation, 
-  foldsFound) => {
+  foldsFound, setErrorMessage, svgRef, connections, offset) => {
   horiEdgesRef.current = new Map();
+  foldsFound.clear();
   connectionPairs.forEach((pair) => {
     if (pair.length === 2) {
       const [
@@ -73,7 +76,7 @@ export const updateHorizontalEdges = (
               horiEdgesRef.current.get(n2[i])[0].set(color, n1[i]);
               horiEdgesRef.current.get(n1[i])[1].set(color, n2[i]);
           }
-          // console.log("HER: ", structuredClone(horiEdgesRef.current));
+          console.log("HER: ", structuredClone(horiEdgesRef.current));
         }
 
         // now look for folds
@@ -86,9 +89,11 @@ export const updateHorizontalEdges = (
             // ≠ 0 --> there is a fold in this map
             if (edgeMap.size % 2 != 0) {
               // sort the map by value
+              console.log(mapNode, " is bad")
               for (let [otherNode, currColor] of edgeMap) {
                 if (currColor[0] == "#") {
                   let trueNode = horiEdgesRef.current.get(mapNode)[i].get(currColor)
+                  console.log("T = ", trueNode, " oN = ", otherNode)
                   if (trueNode != otherNode) {
                     let l = [mapNode, otherNode];
                     l.sort();
@@ -104,8 +109,14 @@ export const updateHorizontalEdges = (
             }
           }
         }
-        // console.log("foldsFound = ",structuredClone(foldsFound))
+        console.log("foldsFound = ",structuredClone(foldsFound))
+        
       }
     }
   })
+  if (foldsFound.size > 0) {
+    setErrorMessage("No-fold condition failed!\nHint: Look for the flashing edges.")
+  }
+  drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation,
+    foldsFound);
 };

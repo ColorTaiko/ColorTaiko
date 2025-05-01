@@ -8,7 +8,7 @@
  * @param {Array} connectionPairs - Array of connection pairs to be drawn with curved paths.
  * @param {number} offset - Distance to offset connection lines from node centers.
  */
-export const drawConnections = (svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, arrowOptions = { color: "red", size: 10 }, foldsFound) => {
+export const drawConnections = (svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, foldsFound) => {
   if (!svgRef.current) return;
 
   // Clear existing connections by removing all child elements of the SVG
@@ -206,8 +206,11 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
           bNode = sortedTopNode1;
         }
         let s = "" + sNode + "," + bNode;
+        console.log("ff = ", structuredClone(foldsFound))
+        console.log("top s = ", s)
         // if (foldsFound.has(sortedTopNode1) && foldsFound.has(sortedTopNode2)) {
         if (foldsFound.has(s)) {
+          console.log("Rendering ", s)
           topCurve.path.classList.add("flash-horizontal");
         }
       }
@@ -228,8 +231,10 @@ export const drawConnections = (svgRef, connections, connectionPairs, offset, to
           bNode = sortedBottomNode1;
         }
         let s = "" + sNode + "," + bNode;
+        console.log("bot s = ", s)
         // if (foldsFound.has(sortedBottomNode1) && foldsFound.has(sortedBottomNode2)) {
         if (foldsFound.has(s)) {
+          console.log("Rendering ", s)
           bottomCurve.path.classList.add("flash-horizontal"); 
         }
       }

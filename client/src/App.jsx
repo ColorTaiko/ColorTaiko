@@ -164,7 +164,7 @@ function App() {
    * Sets welcome message visibility based on the number of nodes in each row.
    */
   useEffect(() => {
-    foldsFound.clear();
+    // foldsFound.clear();
     setWelcomeMessage0(true);
     if (topRowCount === 1 && bottomRowCount === 1 && selectedLevel != null) {
       setWelcomeMessage(true);
@@ -175,12 +175,13 @@ function App() {
   /**
    * Draws connections on the SVG element when related state changes.
    */
+  // chris commented this
   useEffect(() => {
-    drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation, { color: "red", size: 10 },
+    drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation,
       foldsFound);
-    if (foldsFound.size > 0) {
-      setErrorMessage("No-fold condition failed!\nHint: Look for the flashing edges.")
-    }
+    // if (foldsFound.size > 0) {
+    //   setErrorMessage("No-fold condition failed!\nHint: Look for the flashing edges.")
+    // }
   }, [connectionGroups, connections, topRowCount, bottomRowCount, connectionPairs, offset]);
 
   /**
@@ -304,7 +305,10 @@ function App() {
         botOrientation,
         foldsFound,
         horiEdgesRef,
-        level
+        level,
+        setErrorMessage,
+        svgRef,
+        offset
       );
     }
   }, [connectionPairs]);

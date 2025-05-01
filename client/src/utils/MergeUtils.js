@@ -12,7 +12,10 @@ export const checkAndGroupConnections = (
     botOrientation,
     foldsFound,
     horiEdgesRef,
-    level
+    level,
+    setErrorMessage,
+    svgRef,
+    offset
   ) => {
     const [firstConnection, secondConnection] = newPair;
     const [top1, bottom1] = firstConnection.nodes;
@@ -96,6 +99,10 @@ export const checkAndGroupConnections = (
         topOrientation,
         botOrientation,
         foldsFound,
+        setErrorMessage,
+        svgRef,
+        connections,
+        offset
       );
     }
   };
