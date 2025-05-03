@@ -1,6 +1,7 @@
 import React from "react";
 import LevelCard from "./components/LevelCard";
 import "./styles/title_page.css";
+import { useState, useRef, useEffect } from "react";
 
 const levels = [
   { id: 1, name: "Level 1", unlocked: true, xPercent: 50, yPercent: 10 },
@@ -10,7 +11,13 @@ const levels = [
   { id: 5, name: "Level 4.NF+NP", unlocked: false, xPercent: 30, yPercent: 70 },
   { id: 6, name: "Level 4.G4", unlocked: false, xPercent: 70, yPercent: 70 },
   { id: 7, name: "Level 5.NP+G4", unlocked: false, xPercent: 50, yPercent: 90 },
-  { id: 8, name: "Level 5.NP+G6", unlocked: false, xPercent: 100, yPercent: 95 },
+  {
+    id: 8,
+    name: "Level 5.NP+G6",
+    unlocked: false,
+    xPercent: 100,
+    yPercent: 95,
+  },
   // add more levels with x/y positions
 ];
 
@@ -26,7 +33,7 @@ const edges = [
   [4, 8],
 ];
 
-function TitlePage() {
+function TitlePage({ onLevelSelect }) {
   return (
     <div className="title-page">
       <div className="content">
@@ -55,16 +62,13 @@ function TitlePage() {
           </svg>
 
           {/* Level nodes */}
-          {levels.map((level) => (
+          {levels.map((lvl) => (
             <div
-              key={level.id}
+              key={lvl.id}
               className="node"
-              style={{
-                left: `${level.xPercent}%`,
-                top: `${level.yPercent}%`,
-              }}
+              style={{ left: `${lvl.xPercent}%`, top: `${lvl.yPercent}%` }}
             >
-              <LevelCard level={level} />
+              <LevelCard level={lvl} onClick={() => onLevelSelect(lvl.name)} />
             </div>
           ))}
         </div>

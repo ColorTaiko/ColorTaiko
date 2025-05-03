@@ -1,19 +1,40 @@
-// src/components/LevelCard.jsx
-
 import React from "react";
-import "../styles/LevelCard.css"; // separate styling for the cards
+import PropTypes from "prop-types";
+import "../styles/levelcard.css";
+import { useState, useRef, useEffect } from "react";
 
-function LevelCard({ level }) {
-  const { id, name, unlocked } = level;
+export default function LevelCard({ level, onClick }) {
+  const { name, unlocked } = level;
 
   return (
-    <div className={`level-card ${unlocked ? "unlocked" : "locked"}`}>
-      <div className="text">
-        <h2>{name}</h2>
+    <div
+      className={`level-card ${unlocked ? "unlocked" : "locked"}`}
+      onClick={unlocked ? onClick : undefined}
+      style={{ cursor: unlocked ? "pointer" : "not-allowed" }}
+    >
+      <div className="level-card-content">
+        <h3 className="level-name">{name}</h3>
       </div>
-      {!unlocked && <div className="lock-overlay">🔒</div>}
+      {!unlocked && (
+        <div className="level-lock-overlay">
+          <span role="img" aria-label="locked"></span>
+        </div>
+      )}
     </div>
   );
 }
 
-export default LevelCard;
+LevelCard.propTypes = {
+  level: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    name: PropTypes.string.isRequired,
+    unlocked: PropTypes.bool.isRequired,
+    xPercent: PropTypes.number,
+    yPercent: PropTypes.number,
+  }).isRequired,
+  onClick: PropTypes.func,
+};
+
+LevelCard.defaultProps = {
+  onClick: () => {},
+};

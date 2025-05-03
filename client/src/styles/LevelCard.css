@@ -1,31 +1,37 @@
 /* src/components/LevelCard.css */
 
 .level-card {
-    background: #ffffff;
-    padding: 20px;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: transform 0.2s, background-color 0.2s;
-    position: relative;
-  }
-  
-  .level-card:hover {
-    transform: scale(1.05);
-    background-color: #ff4e4e;
-  }
-  
-  .level-card.locked {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-  
-  .lock-overlay {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 24px;
-  }
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  transition: transform 0.2s, background-color 0.2s;
+  position: relative;
+}
 
-  .text {
-    color: black
-  }
+.level-card.unlocked {
+  cursor: pointer;
+}
+
+.level-card:hover {
+  transform: scale(1.05);
+  background-color: #ff4e4e;
+}
+
+.level-card.locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* match the className used in LevelCard.jsx */
+.level-lock-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 24px;
+}
+
+/* color your level text */
+.level-name {
+  color: black;
+  margin: 0;
+}
