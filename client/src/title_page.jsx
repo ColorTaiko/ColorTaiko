@@ -21,6 +21,17 @@ const levels = [
   // add more levels with x/y positions
 ];
 
+const levelExplanations = {
+  "Level 1":["color merging"],
+  "Level 2": ["color merging", "orientation"],
+  "Level 3.NF": ["color merging", "orientation", "no-fold"],
+  "Level 3.G4": ["color merging", "orientation", "girth-4"],
+  "Level 4.NF+NP": ["color merging", "orientation", "no-fold", "no-pattern"],
+  "Level 4.G4": ["color merging", "orientation", "girth-4"],
+  "Level 5.NP+G4": ["color merging", "orientation", "no-pattern", "girth-4"],
+  "Level 5.NP+G6": ["color merging", "orientation", "no-pattern", "girth-6"],
+};
+
 const edges = [
   [1, 2],
   [2, 3],
@@ -34,6 +45,7 @@ const edges = [
 ];
 
 function TitlePage({ onLevelSelect }) {
+  const [hoveredLevel, setHoveredLevel] = useState(null);
   return (
     <div className="title-page">
       <div className="content">
@@ -68,9 +80,29 @@ function TitlePage({ onLevelSelect }) {
               className="node"
               style={{ left: `${lvl.xPercent}%`, top: `${lvl.yPercent}%` }}
             >
-              <LevelCard level={lvl} onClick={() => onLevelSelect(lvl.name)} />
+              <LevelCard
+                level={lvl}
+                onClick={() => onLevelSelect(lvl.name)}
+                onHover={setHoveredLevel}
+              />
             </div>
           ))}
+          {hoveredLevel && (
+            <div
+              className="floating-tooltip"
+              style={{
+                position: "absolute",
+                left: `calc(${hoveredLevel.xPercent}% + 40px)`,
+                top: `${hoveredLevel.yPercent}%`,
+              }}
+            >
+              <ul className="tooltip-list">
+                {levelExplanations[hoveredLevel.name].map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>

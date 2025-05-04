@@ -61,6 +61,7 @@
     position: absolute;
     transform: translate(-50%, -50%);
     z-index: 2;
+    overflow: visible;
   }
   
   .game-title {
@@ -89,3 +90,30 @@
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
+
+  .floating-tooltip {
+    background-color: white;
+    color: black;
+    padding: 6px 6px;           /* ⬅️ add more padding inside the box */
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+    transform: translateY(-50%);
+    z-index: 9999;
+    pointer-events: none;
+  }
+  
+  .tooltip-list {
+    margin: 0;
+    padding-left: 20px;           /* ⬅️ indent bullets from the left edge */
+    list-style-type: disc;
+  }
+  
+  .tooltip-list li {
+    margin-bottom: 6px;
+  }
+  
+  
+  
