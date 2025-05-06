@@ -2,6 +2,7 @@ import React from "react";
 import LevelCard from "./components/LevelCard";
 import "./styles/title_page.css";
 import { useState, useRef, useEffect } from "react";
+import Title from "./components/title";
 
 const levels = [
   { id: 1, name: "Level 1", unlocked: true, xPercent: 50, yPercent: 10 },
@@ -50,9 +51,12 @@ function TitlePage({ onLevelSelect }) {
     <div className="title-page">
       <div className="content">
         <header className="header">
-          <h1 className="game-title">ColorTaiko!</h1>
+          <Title />
         </header>
-        <div className="sidebar"></div>
+        <div className="sidebar">
+          <div className="difficulty-label easy-label">Easy</div>
+          <div className="difficulty-label hard-label">Hard</div>
+        </div>
         <div className="graph-container">
           {/* SVG edges */}
           <svg className="edges">
