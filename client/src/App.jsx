@@ -281,8 +281,10 @@ function App() {
    */
   useEffect(() => {
     const latestPair = connectionPairs[connectionPairs.length - 1];
-
+  
+    // only act when a full pair (two edges) has just been added
     if (latestPair && latestPair.length === 2) {
+      // 1) enforce Level‑2 orientation rule
       if (level === "Level 2") {
         const orientRes = checkOrientation(
           latestPair,
@@ -292,12 +294,15 @@ function App() {
           flippedConnectionsPerMove
         );
         if (orientRes === -1) {
+          if (soundBool) errorAudio.play();
           setErrorMessage("Orientation condition failed!");
           setSelectedNodes([]);
           handleUndo();
           return;
         }
       }
+  
+      // 2) group the new pair and update state
       checkAndGroupConnections(
         latestPair,
         groupMapRef,
@@ -305,13 +310,24 @@ function App() {
         connections,
         setConnections
       );
-      updateHorizontalEdges(
-        connectionPairs,
-        horiEdgesRef,
-        topOrientation,
-        botOrientation,
-        flippedConnectionsPerMove
-      );
+  
+      // 3) rebuild the horizontal/horiz‑edge map and catch any “no‑pattern” error
+      try {
+        updateHorizontalEdges(
+          connectionPairs,
+          horiEdgesRef,
+          topOrientation,
+          botOrientation,
+          flippedConnectionsPerMove
+        );
+      } catch (err) {
+        if (soundBool) errorAudio.play();
+        setErrorMessage(err.message);
+        // handleUndo();
+        return;
+      }
+  
+      // 4) finally update the trio‐map for any single‑row edge changes
       try {
         const [
           { nodes: [n1a, n1b] },
@@ -325,11 +341,13 @@ function App() {
           updateTrioMapOnEdgeChange(horiEdgesRef, n2a, n2b);
         }
       } catch (err) {
+        if (soundBool) errorAudio.play();
         setErrorMessage(err.message);
         handleUndo();
       }
     }
   }, [connectionPairs]);
+  
 
   // useEffect(() => {
   //   const latestPair = connectionPairs[connectionPairs.length - 1];)
@@ -674,7 +692,10 @@ function App() {
       <ErrorModal
         className="error-container"
         message={errorMessage}
-        onClose={() => setErrorMessage("")}
+        onClose={() => {
+          setErrorMessage("");
+          handleUndo();
+        }} //i added handleundo here
       />
   
       {showNodes && (

@@ -66,7 +66,8 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 36px;
-  font-family: 'Cinzel Decorative', serif;
+  /* font-family: 'Cinzel Decorative', serif; */
+  font-family: Arial black, sans-serif;
   font-weight: 400;
   color: #dcdcdc;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
@@ -256,4 +257,25 @@ body {
 
 .bottom-row {
   margin-top: 100px;
+}
+
+@keyframes flashLine {
+  0%, 100% {
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-opacity: 0.2;
+  }
+}
+
+.flash-horizontal {
+  animation: flashLine 1s infinite;
+  stroke-width: 4;
+  stroke-opacity: 1;
+  /* mix-blend-mode: screen; */
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
 }
