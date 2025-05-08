@@ -7,7 +7,7 @@ import Title from "./components/title";
 const levels = [
   { id: 1, name: "Level 1", unlocked: true, xPercent: 50, yPercent: 10 },
   { id: 2, name: "Level 2", unlocked: true, xPercent: 50, yPercent: 30 },
-  { id: 3, name: "Level 3.NF", unlocked: true, xPercent: 50, yPercent: 50 },
+  { id: 3, name: "Level 3.NF", unlocked: false, xPercent: 50, yPercent: 50 },
   { id: 4, name: "Level 3.G4", unlocked: true, xPercent: 90, yPercent: 50 },
   { id: 5, name: "Level 4.NF+NP", unlocked: false, xPercent: 30, yPercent: 70 },
   { id: 6, name: "Level 4.G4", unlocked: false, xPercent: 70, yPercent: 70 },
@@ -23,7 +23,7 @@ const levels = [
 ];
 
 const levelExplanations = {
-  "Level 1":["color merging"],
+  "Level 1": ["color merging"],
   "Level 2": ["color merging", "orientation"],
   "Level 3.NF": ["color merging", "orientation", "no-fold"],
   "Level 3.G4": ["color merging", "orientation", "girth-4"],

@@ -17,6 +17,7 @@ import ProgressBar from "./components/ProgressBar/progressBar";
 import Title from "./components/title";
 import { useAudio } from "./hooks/useAudio";
 import { useSettings } from "./hooks/useSetting";
+import { checkGirth } from "./utils/girth.js";
 
 function App({ level }) {
   // Game state management
@@ -257,9 +258,20 @@ function App({ level }) {
     // if(groupMapRef.current.size === 0) {
 
     // }
+    if (level === "Level 3.G4") {
+      const girth_check = checkGirth(topOrientation, botOrientation);
+      if (girth_check == -1) {
+        setErrorMessage(
+          "Girth condition failed! You must maintain a Girth of at least 4."
+        );
+        setSelectedNodes([]);
+        handleUndo();
+        return;
+      }
+    }
 
     if (latestPair && latestPair.length === 2) {
-      if (level === "Level 2") {
+      if (level === "Level 2" || level === "Level 3.G4") {
         const a = checkOrientation(
           latestPair,
           groupMapRef,
