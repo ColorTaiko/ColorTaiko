@@ -1,13 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Caveat:wght@400..700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap');
-
+@import url("https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Caveat:wght@400..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap");
 * {
   padding: 0px;
   border: 0px;
   margin: 0px;
 }
-
 body {
   background-color: rgb(0, 0, 0);
   display: flex;
@@ -17,22 +15,17 @@ body {
   overflow: auto;
   color: white;
 }
-
-.light-mode{
+.light-mode {
   background-color: #F5F5F7;
   color: rgb(0, 0, 0);
-  
 }
-
 .title {
   font-size: 4rem;
   margin-top: 10px;
 }
-
 .error-container {
   color: black;
 }
-
 .tooltip {
   position: absolute;
   background-color: rgba(0, 0, 0, 0.8);
@@ -45,7 +38,6 @@ body {
   box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
 }
-
 .icon {
   position: absolute;
   top: 16px;
@@ -54,19 +46,17 @@ body {
   cursor: pointer;
   transition: transform 0.2s ease;
 }
-
 .icon:hover {
   color: #007bff;
   transform: scale(1.1); 
 }
-
 .fade-message {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 36px;
-  /* font-family: 'Cinzel Decorative', serif; */
+  /* font-family: "Cinzel Decorative", serif; */
   font-family: Arial black, sans-serif;
   font-weight: 400;
   color: #dcdcdc;
@@ -80,19 +70,17 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 36px;
-  font-family: 'Cinzel Decorative', serif;
+  font-family: "Cinzel Decorative", serif;
   font-weight: 400;
   color: #000000;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   opacity: 0;
   animation: fadeInOut 3s ease-in-out forwards;
 }
-
 @keyframes fadeInOut {
   0%, 100% { opacity: 0; }
   25%, 75% { opacity: 1; }
 }
-
 /* App.css */
 .app-container {
   text-align: center;
@@ -100,7 +88,6 @@ body {
   font-family: Arial, sans-serif;
   color: white;
 }
-
 .icon {
   cursor: pointer;
   /* Other styling as needed */
@@ -108,7 +95,6 @@ body {
 .light-mode .icon {
   filter: invert(1) brightness(0.8);
 }
-
 @media (max-width: 850px) {
   .clear-button {
     margin-top: 60px;
@@ -126,7 +112,7 @@ body {
     margin-top: 70px;
   }
 }
-@media (max-width: 1300px){
+@media (max-width: 1300px) {
   .level-selector {
     margin-top: 120px;
     margin-left: 0px;
@@ -140,9 +126,6 @@ body {
     right: 0;
   }
 }
-
-
-
 .clear-button {
   position: absolute;
   top: 10px;
@@ -155,7 +138,6 @@ body {
   border-radius: 5px;
   cursor: pointer;
 }
-
 .undo-button {
   position: absolute;
   top: 60px;
@@ -168,7 +150,6 @@ body {
   border-radius: 5px;
   cursor: pointer;
 }
-
 .undo-button {
   position: absolute;
   top: 60px;
@@ -181,7 +162,6 @@ body {
   border-radius: 5px;
   cursor: pointer;
 }
-
 .level-selector {
   position: absolute;
   top: 15px;
@@ -191,12 +171,10 @@ body {
   align-items: flex-start;
   z-index: 1000; /* Ensure dropdown is visible */
 }
-
 .level-label {
   font-size: 16px;
   margin-bottom: 5px;
 }
-
 .level-dropdown {
   padding: 10px;
   font-size: 16px;
@@ -205,12 +183,10 @@ body {
   background-color: #f8f9fa;
   cursor: pointer;
 }
-
 .level-dropdown:disabled {
   background-color: #e9ecef;
   cursor: not-allowed;
 }
-
 .level-selected {
   position: absolute;
   top: 110px;
@@ -220,13 +196,6 @@ body {
   color: black;
   font-weight: bold;
 }
-
-
-
-
-
-
-
 .svg-overlay {
   position: absolute;
   top: 0;
@@ -236,7 +205,6 @@ body {
   pointer-events: none;
   z-index: 10;
 }
-
 .game-box {
   position: relative;
   height: 95vh;
@@ -247,18 +215,15 @@ body {
   justify-content: center;
   overflow: visible;
 }
-
 .game-row {
   display: flex;
   justify-content: space-around;
   align-items: center;
   overflow: visible;
 }
-
 .bottom-row {
   margin-top: 100px;
 }
-
 @keyframes flashLine {
   0%, 100% {
     stroke-opacity: 1;
@@ -267,7 +232,6 @@ body {
     stroke-opacity: 0.2;
   }
 }
-
 .flash-horizontal {
   animation: flashLine 1s infinite;
   stroke-width: 4;
