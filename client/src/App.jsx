@@ -694,7 +694,6 @@ function App() {
         message={errorMessage}
         onClose={() => {
           setErrorMessage("");
-          handleUndo();
         }} //i added handleundo here
       />
   
