@@ -8,6 +8,7 @@ import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { appendHorizontalEdges, clearPatternLog, rebuildPatternLog } from "./utils/patternLog";
 // import { checkOrientation } from "./utils/checkOrientation";
+import { generateRandomGraph } from "./utils/randomGraph";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
