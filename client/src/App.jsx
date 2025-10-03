@@ -7,6 +7,7 @@ import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { checkOrientation } from "./utils/checkOrientation";
+import { invalidateNodeCache } from "./utils/detectNodeUnderPosition";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -152,6 +153,9 @@ function App() {
       groupMapRef.current = new Map(previousState.groupMap);
       topOrientation.current = new Map(previousState.topOrientationMap);
       botOrientation.current = new Map(previousState.botOrientationMap);
+      
+      // Invalidate cache when node counts change
+      invalidateNodeCache();
 
       setHistory((prev) => prev.slice(0, -1));
       setCurrentStep(currentStep - 1);
@@ -455,6 +459,9 @@ function App() {
     groupMapRef.current.clear();
     topOrientation.current.clear();
     botOrientation.current.clear();
+    
+    // Invalidate cache when resetting the game
+    invalidateNodeCache();
 
     // Reset history and clear the connection log.
     setHistory([

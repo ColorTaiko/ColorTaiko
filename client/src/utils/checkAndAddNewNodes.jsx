@@ -1,3 +1,5 @@
+import { invalidateNodeCache } from './detectNodeUnderPosition';
+
 /**
  * Checks if all nodes in the top or bottom rows are connected and, if so,
  * increments the row count to add a new node.
@@ -21,5 +23,7 @@ export const checkAndAddNewNodes = (topRowCount, bottomRowCount, connections, se
     // Add a new node to the row if all nodes in that row are connected
     if (allTopNodesConnected || allBottomNodesConnected) {
       allTopNodesConnected ? setTopRowCount((prev) => prev + 1) : setBottomRowCount((prev) => prev + 1);
+      // Invalidate cache when new nodes are added
+      invalidateNodeCache();
     }
   };
