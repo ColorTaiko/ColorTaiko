@@ -358,7 +358,7 @@ function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setFlashingNodes([]);
-    }, 10000);
+    }, 12000);
 
     // TODO: change to flash until fixed?
 

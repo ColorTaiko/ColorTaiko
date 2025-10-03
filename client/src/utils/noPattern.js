@@ -148,7 +148,9 @@ export function noPattern(latestPair, context, setFlashingNodes) {
       console.warn("NO PATTERN BAD");
       console.warn(err.trioMap);
 
-      setFlashingNodes(['top-1'])
+      console.warn([...err.trioMap.values().map((o) => [o.pt1, o.pt2, o.pt3])].flat())
+
+      setFlashingNodes([...err.trioMap.values().map((o) => [o.pt1, o.pt2, o.pt3])].flat());
 
       // TODO: Lift side effect outside of noPattern
     }
