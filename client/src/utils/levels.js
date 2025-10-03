@@ -33,16 +33,18 @@ const noFoldCheck = (latestPair, ctx) => {
   return { ok: true };
 };
 
-const noPatternCheck = (latestPair, ctx) => {
-  const res = noPattern(latestPair, ctx);
-  if (res && res.ok === false)
-    return { ok: false, message: res.message || "No-Pattern condition failed!" };
-  return { ok: true };
+const noPatternCheck = (setFlashingNodes) => {
+  return  (latestPair, ctx) => {
+    const res = noPattern(latestPair, ctx, setFlashingNodes);
+    if (res && res.ok === false)
+      return { ok: false, message: res.message || "No-Pattern condition failed!" };
+    return { ok: true };
+  };
 };
 
 // Level -> cumulative checks
 // Per user: Levels are progressive through Level 3, then branch: 4NP and 4.6 are parallel.
-export function getChecksForLevel(level) {
+export function getChecksForLevel(level, setFlashingNodes) {
   switch (level) {
     case "Level 1":
       return [];
@@ -51,7 +53,7 @@ export function getChecksForLevel(level) {
     case "Level 3":
       return [orientationCheck, noFoldCheck];
     case "Level 4NP":
-      return [orientationCheck, noFoldCheck, noPatternCheck];
+      return [orientationCheck, noFoldCheck, noPatternCheck(setFlashingNodes)];
     case "Level 4.6":
       return [orientationCheck, noFoldCheck, girthCheck(6)];
     default:
@@ -60,8 +62,8 @@ export function getChecksForLevel(level) {
 }
 
 // Run all checks for a given level; stop at first failure.
-export function runLevelChecks(level, latestPair, context) {
-  const checks = getChecksForLevel(level);
+export function runLevelChecks(level, latestPair, context, setFlashingNodes) {
+  const checks = getChecksForLevel(level, setFlashingNodes);
   for (const check of checks) {
     const result = check(latestPair, context) || { ok: true };
     if (!result.ok) return result;

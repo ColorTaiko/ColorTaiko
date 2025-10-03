@@ -53,3 +53,13 @@
   position: absolute;
   z-index: 11;
 }
+
+.flash {
+  animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 20%;
+  }
+}

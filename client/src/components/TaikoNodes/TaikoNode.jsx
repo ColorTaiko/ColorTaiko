@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { useState, useEffect } from 'react';
 import './taikoNode.css';
 
-const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted}) => {
+const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted, isFlashing}) => {
   const [entering, setEntering] = useState(true);
 
   useEffect(() => {
@@ -21,10 +21,9 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
     else {
       setBackgroundColor("white")
     }
-    //console.log(backgroundColor)
   }, [lightMode])
 
-  const classNames = `taiko-node ${entering ? 'taiko-node-enter' : ''}${isSelected ? ' selected' : ''}`;
+  const classNames = `${isFlashing ? 'flash' : ''} taiko-node ${entering ? 'taiko-node-enter' : ''}${isSelected ? ' selected' : ''}`;
 
   return (
     <div

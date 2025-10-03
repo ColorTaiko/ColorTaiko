@@ -121,7 +121,7 @@ function assertNoPattern(horiEdges, topOrientation, botOrientation) {
         if (trioMap.has(key)) {
           // Conflict detected: duplicate trio signature
           const msg = 'No-Pattern fails! Check the flashing edges to see your mistake.';
-          throw new NoPatternError(msg);
+          throw new NoPatternError(msg, trioMap);
         }
 
         trioMap.set(key, { pt1, pt2: center, pt3, orientation1: o1, color1: c1, orientation2: o2, color2: c2 });
@@ -130,7 +130,7 @@ function assertNoPattern(horiEdges, topOrientation, botOrientation) {
   });
 }
 
-export function noPattern(latestPair, context) {
+export function noPattern(latestPair, context, setFlashingNodes) {
   void latestPair; // latestPair not strictly required; check uses full state
 
   const { connectionPairs, topOrientation, botOrientation } = context || {};
@@ -144,6 +144,15 @@ export function noPattern(latestPair, context) {
     assertNoPattern(horiEdges, topOrientation, botOrientation);
     return { ok: true };
   } catch (err) {
+    if (err instanceof NoPatternError) {
+      console.warn("NO PATTERN BAD");
+      console.warn(err.trioMap);
+
+      setFlashingNodes(['top-1'])
+
+      // TODO: Lift side effect outside of noPattern
+    }
+
     return { ok: false, message: err?.message || 'No-Pattern condition failed!' };
   }
 }

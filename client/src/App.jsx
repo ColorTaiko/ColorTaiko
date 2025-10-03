@@ -54,6 +54,7 @@ function App() {
   const groupMapRef = useRef(new Map());
   const previousProgressRef = useRef(progress);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
+  const [flashingNodes, setFlashingNodes] = useState([]);
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
 
@@ -352,6 +353,20 @@ function App() {
     return () => window.removeEventListener("mouseup", handleMouseUp);
   }, [isDraggingLine, currentLineEl, selectedNodes]);
 
+  // Removes flashing effect after timeout
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFlashingNodes([]);
+    }, 10000);
+
+    // TODO: change to flash until fixed?
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [flashingNodes]);
+
   /**
    * Groups connections when a new connection pair is completed.
    */
@@ -370,7 +385,7 @@ function App() {
           topRowCount,
           bottomRowCount,
           patternLog: patternLogRef.current,
-        });
+        }, setFlashingNodes);
         if (!validation.ok) {
           setErrorMessage(validation.message || "Level condition failed!");
           setSelectedNodes([]);
@@ -430,6 +445,7 @@ function App() {
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
         isHighlighted={highlightedNodes.includes(`top-${i}`)}
+        isFlashing={flashingNodes.includes(`top-${i}`)}
       />
     ));
 
@@ -447,6 +463,7 @@ function App() {
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
         isHighlighted={highlightedNodes.includes(`bottom-${i}`)}
+        isFlashing={flashingNodes.includes(`bottom-${i}`)}
       />
     ));
 
