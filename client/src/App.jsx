@@ -704,6 +704,7 @@ function App() {
             onChange={handleLevelChange}
             disabled={isDropdownDisabled}
             className="level-dropdown"
+            defaultValue=""
           >
             <option value="" disabled>
               Choose a level

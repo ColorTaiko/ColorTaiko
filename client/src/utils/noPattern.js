@@ -19,6 +19,8 @@
  * - It re-derives the horizontal edge map from connectionPairs and the current orientations.
  */
 
+import { NoPatternError } from "./errors";
+
 /**
  * Build the horizontal edges adjacency map from connectionPairs and orientations.
  * Returns: Map<nodeId, [outMap: Map<nodeId,color>, inMap: Map<nodeId,color>]>
@@ -119,7 +121,7 @@ function assertNoPattern(horiEdges, topOrientation, botOrientation) {
         if (trioMap.has(key)) {
           // Conflict detected: duplicate trio signature
           const msg = 'No-Pattern fails! Check the flashing edges to see your mistake.';
-          throw new Error(msg);
+          throw new NoPatternError(msg);
         }
 
         trioMap.set(key, { pt1, pt2: center, pt3, orientation1: o1, color1: c1, orientation2: o2, color2: c2 });
