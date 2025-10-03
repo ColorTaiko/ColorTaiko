@@ -12,6 +12,7 @@ import { noFoldPreflightWithPatternLog } from "./utils/noFold";
 import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
 import { levelsWithNoPattern } from "./utils/levels";
 // import { checkOrientation } from "./utils/checkOrientation";
+import { generateRandomGraph } from "./utils/randomGraph";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
