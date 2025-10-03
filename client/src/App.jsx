@@ -5,6 +5,7 @@ import { getPreviewColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
 import { checkAndGroupConnections, predictPairFinalColor } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
+import { calculateScore } from "./utils/calculateScore";
 import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { appendHorizontalEdges, clearPatternLog } from "./utils/patternLog";
@@ -13,7 +14,7 @@ import { noFoldPreflightWithPatternLog } from "./utils/noFold";
 import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
 import { levelsWithNoPattern } from "./utils/levels";
 // import { checkOrientation } from "./utils/checkOrientation";
-import { generateRandomGraph } from "./utils/randomGraph";
+// import { generateRandomGraph } from "./utils/randomGraph";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -78,6 +79,14 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const svgRef = useRef(null);
   const groupMapRef = useRef(new Map());
+  const connectionsRef = useRef(connections);
+  const connectionPairsRef = useRef(connectionPairs);
+  const connectionGroupsRef = useRef(connectionGroups);
+  const topRowCountRef = useRef(topRowCount);
+  const bottomRowCountRef = useRef(bottomRowCount);
+  const edgeStateRef = useRef(edgeState);
+  const currentColorRef = useRef(currentColor);
+  const levelRef = useRef("level");
   const previousProgressRef = useRef(progress);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [flashingNodes, setFlashingNodes] = useState([]);
@@ -223,6 +232,23 @@ function App() {
     setCurrentStep(currentStep + 1);
   };
 
+  const saveToHistoryNow = () => {
+    const newState = {
+      connections: structuredClone(connectionsRef.current),
+      connectionPairs: structuredClone(connectionPairsRef.current),
+      connectionGroups: structuredClone(connectionGroupsRef.current),
+      topRowCount: topRowCountRef.current,
+      bottomRowCount: bottomRowCountRef.current,
+      edgeState: edgeStateRef.current,
+      groupMap: structuredClone(groupMapRef.current),
+      topOrientationMap: structuredClone(topOrientation.current),
+      botOrientationMap: structuredClone(botOrientation.current),
+    };
+
+    setHistory((h) => [...h, newState]);
+    setCurrentStep((s) => s + 1);
+  };
+
   // Helper to print the full connection log.
   const printFullConnectionLog = useCallback(() => {
     const fullLog = connectionLogRef.current
@@ -233,17 +259,152 @@ function App() {
     console.log(`Updated connection order: ${fullLog}`);
   }, []);
 
-  // Begin timeout events for randomizer
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
+  useEffect(() => {
+    connectionPairsRef.current = connectionPairs;
+  }, [connectionPairs]);
+  useEffect(() => {
+    connectionGroupsRef.current = connectionGroups;
+  }, [connectionGroups]);
+  useEffect(() => {
+    topRowCountRef.current = topRowCount;
+  }, [topRowCount]);
+  useEffect(() => {
+    bottomRowCountRef.current = bottomRowCount;
+  }, [bottomRowCount]);
+  useEffect(() => {
+    edgeStateRef.current = edgeState;
+  }, [edgeState]);
+  useEffect(() => {
+    currentColorRef.current = currentColor;
+  }, [currentColor]);
+  useEffect(() => {
+    levelRef.current = level;
+  }, [level]);
+
+  // Begin timeout events for randomize
   const startRandomize = () => {
     const timer = setInterval(() => {
-      console.log('RANDOMIZING');
-    }, 1000);
+      const maxAttempts = 500;
+      const candidates = [];
+
+      // Precompute node degrees to bias sampling towards higher-degree vertices.
+      const tCount = topRowCountRef.current;
+      const bCount = bottomRowCountRef.current;
+      if (tCount <= 0 || bCount <= 0) {
+        // nothing to do
+      } else {
+        const topDegrees = Array.from({ length: tCount }, (_, i) => 0);
+        const botDegrees = Array.from({ length: bCount }, (_, i) => 0);
+        for (const c of connectionsRef.current) {
+          if (!Array.isArray(c.nodes)) continue;
+          for (const nid of c.nodes) {
+            if (typeof nid !== 'string') continue;
+            if (nid.startsWith('top-')) {
+              const idx = parseInt(nid.split('-')[1], 10);
+              if (!Number.isNaN(idx) && idx >= 0 && idx < tCount) topDegrees[idx]++;
+            } else if (nid.startsWith('bottom-')) {
+              const idx = parseInt(nid.split('-')[1], 10);
+              if (!Number.isNaN(idx) && idx >= 0 && idx < bCount) botDegrees[idx]++;
+            }
+          }
+        }
+
+        // Build sampling weights (degree + 1) so higher-degree nodes are more likely.
+        const topWeights = topDegrees.map((d) => d + 1);
+        const botWeights = botDegrees.map((d) => d + 1);
+
+        const sampleIndexByWeights = (weights) => {
+          const total = weights.reduce((s, w) => s + w, 0);
+          if (total <= 0) return Math.floor(Math.random() * weights.length);
+          let r = Math.random() * total;
+          for (let i = 0; i < weights.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return i;
+          }
+          return weights.length - 1;
+        };
+
+        for (let attempt = 0; attempt < maxAttempts && candidates.length < 30; attempt++) {
+          const topIdx = sampleIndexByWeights(topWeights);
+          const botIdx = sampleIndexByWeights(botWeights);
+          const topId = `top-${topIdx}`;
+          const botId = `bottom-${botIdx}`;
+
+        const alreadyConnected = connectionsRef.current.some(
+          (c) => c.nodes.includes(topId) && c.nodes.includes(botId)
+        );
+        if (alreadyConnected) continue;
+
+        const pending = edgeStateRef.current;
+
+        if (pending) {
+          if (pending.nodes.includes(topId) || pending.nodes.includes(botId)) continue;
+
+          const newConnection = { nodes: [topId, botId], color: pending.color };
+          const candidatePair = [pending, newConnection];
+          const validation = runLevelChecks(levelRef.current, candidatePair, {
+            groupMapRef,
+            topOrientation,
+            botOrientation,
+            connections: connectionsRef.current,
+            connectionPairs: connectionPairsRef.current,
+            topRowCount: topRowCountRef.current,
+            bottomRowCount: bottomRowCountRef.current,
+            patternLog: patternLogRef.current,
+          }, setFlashingNodes);
+
+          if (!validation.ok) continue;
+
+          // simulate resulting state for scoring
+          const simulatedConnections = [...connectionsRef.current, newConnection];
+          const prevPairs = connectionPairsRef.current;
+          const lastPair = prevPairs[prevPairs.length - 1];
+          const simulatedPairs = lastPair && lastPair.length === 1
+            ? [...prevPairs.slice(0, -1), [...lastPair, newConnection]]
+            : [...prevPairs, [pending, newConnection]];
+
+          const score = calculateScore(simulatedConnections, topRowCountRef.current, bottomRowCountRef.current);
+          candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
+        } else {
+          const newColor = generateColor(currentColorRef.current, setCurrentColor, connectionPairsRef.current);
+          const newConnection = { nodes: [topId, botId], color: newColor };
+
+          const simulatedConnections = [...connectionsRef.current, newConnection];
+          const simulatedPairs = [...connectionPairsRef.current, [newConnection]];
+          const score = calculateScore(simulatedConnections, topRowCountRef.current, bottomRowCountRef.current);
+          candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+        }
+  }
+  }
+
+  if (candidates.length > 0) {
+        // pick the best-scoring candidate
+        candidates.sort((a, b) => b.score - a.score);
+        const best = candidates[0];
+
+        // commit the best candidate atomically
+        saveToHistoryNow();
+        setConnections(best.simulatedConnections);
+        setConnectionPairs(best.simulatedPairs);
+        if (best.type === 'single') {
+          setEdgeState(best.newConnection);
+          connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+        } else {
+          setEdgeState(null);
+          connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+        }
+        printFullConnectionLog();
+      }
+    }, 2000);
 
     setRandomizingTimer(timer);
   };
 
   const stopRandomize = () => {
-    clearTimeout(randomizingTimer);
+    if (randomizingTimer) clearInterval(randomizingTimer);
     setRandomizingTimer(null);
   };
 
@@ -794,7 +955,7 @@ function App() {
           topRowCount,
           bottomRowCount,
           patternLog: patternLogRef.current,
-        }, setFlashingNodes);
+        }, setFlashingNodes, false);
         if (!validation.ok) {
           setSelectedNodes([]);
           setHighlightedNodes([]);
@@ -1263,7 +1424,7 @@ function App() {
         </div>
       )}
       <button onClick={handleRandomize} className="randomize-button">
-        {isRandomizing ? 'Stop Randomizing' : 'Randomize'}
+        {isRandomizing ? 'Stop Generating' : 'Random Taiko'}
       </button>
       {!selectedLevel ? (
         <div className="level-selector">

@@ -1,6 +1,9 @@
 import { checkOrientation } from "./checkOrientation.js";
 import { deriveHorizontalEdgesFromPair } from "./patternLog.js";
 import { checkAndGroupConnections } from "./MergeUtils.js";
+// TODO: reuse colors with different styles - solid, dashed, dotted, etc.
+// TODO: seperate branch on the main repo "demo"
+// TODO: show pop up with error message
 
 /**
  * No-Pattern check: verifies that no two horizontal trios (pt1-pt2-pt3) share the same
@@ -105,8 +108,11 @@ function assertNoPatternFromAdj(horiEdges) {
 
         if (trioMap.has(key)) {
           // Conflict detected: duplicate trio signature
+          const existing = trioMap.get(key);
+          const current = { pt1, pt2: center, pt3, orientation1: o1, color1: c1, orientation2: o2, color2: c2 };
           const msg = 'No-Pattern fails! Check the flashing edges to see your mistake.';
-          throw new NoPatternError(msg, trioMap);
+          // Provide both the existing trio and current trio so callers can highlight the exact invalid edge(s)
+          throw new NoPatternError(msg, trioMap, { existing, current });
         }
 
         trioMap.set(key, { pt1, pt2: center, pt3, orientation1: o1, color1: c1, orientation2: o2, color2: c2 });
@@ -138,7 +144,9 @@ export function noPatternFromPatternLog(patternLog, options = {}) {
         });
       }
 
-      setFlashingNodes([...err.trioMap.values().map((o) => [o.pt1, o.pt2, o.pt3])].flat());
+      if (loud) {
+        setFlashingNodes([...err.trioMap.values().map((o) => [o.pt1, o.pt2, o.pt3])].flat());
+      }
 
       return { ok: false, message: err?.message || 'No-Pattern condition failed!', patterns };
     }
