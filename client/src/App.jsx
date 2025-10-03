@@ -78,6 +78,7 @@ function App() {
   const groupMapRef = useRef(new Map());
   const previousProgressRef = useRef(progress);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
+  const [flashingNodes, setFlashingNodes] = useState([]);
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
 
@@ -732,7 +733,7 @@ function App() {
           topRowCount,
           bottomRowCount,
           patternLog: patternLogRef.current,
-        });
+        }, setFlashingNodes);
         if (!validation.ok) {
           setSelectedNodes([]);
           setHighlightedNodes([]);
@@ -811,6 +812,7 @@ function App() {
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
         isHighlighted={highlightedNodes.includes(`top-${i}`)}
+        isFlashing={flashingNodes.includes(`top-${i}`)}
       />
     ));
 
@@ -828,6 +830,7 @@ function App() {
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
         isHighlighted={highlightedNodes.includes(`bottom-${i}`)}
+        isFlashing={flashingNodes.includes(`bottom-${i}`)}
       />
     ));
 

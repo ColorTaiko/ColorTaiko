@@ -106,7 +106,7 @@ function assertNoPatternFromAdj(horiEdges) {
         if (trioMap.has(key)) {
           // Conflict detected: duplicate trio signature
           const msg = 'No-Pattern fails! Check the flashing edges to see your mistake.';
-          throw new NoPatternError(msg);
+          throw new NoPatternError(msg, trioMap);
         }
 
         trioMap.set(key, { pt1, pt2: center, pt3, orientation1: o1, color1: c1, orientation2: o2, color2: c2 });
@@ -122,6 +122,15 @@ export function noPatternFromPatternLog(patternLog, options = {}) {
     assertNoPatternFromAdj(adj);
     return { ok: true };
   } catch (err) {
+    if (err instanceof NoPatternError) {
+      console.warn("NO PATTERN BAD");
+      console.warn(err.trioMap);
+
+      setFlashingNodes(['top-1'])
+
+      // TODO: Lift side effect outside of noPattern
+    }
+
     return { ok: false, message: err?.message || 'No-Pattern condition failed!' };
   }
 }
