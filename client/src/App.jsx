@@ -61,6 +61,8 @@ function App() {
   const botOrientation = useRef(new Map());
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
+  const [isRandomizing, setIsRandomizing] = useState(false);
+  const [randomizingTimer, setRandomizingTimer] = useState(null);
   const [currentLineEl, setCurrentLineEl] = useState(null);
   const [level, setLevel] = useState("level");
 
@@ -144,6 +146,30 @@ function App() {
       .join(", ");
     console.log(`Updated connection order: ${fullLog}`);
   }, []);
+
+  // Begin timeout events for randomizer
+  const startRandomize = () => {
+    const timer = setInterval(() => {
+      console.log('RANDOMIZING');
+    }, 1000);
+
+    setRandomizingTimer(timer);
+  };
+
+  const stopRandomize = () => {
+    clearTimeout(randomizingTimer);
+    setRandomizingTimer(null);
+  };
+
+  const handleRandomize = () => {
+    if (isRandomizing) {
+      stopRandomize();
+    } else {
+      startRandomize();
+    }
+
+    setIsRandomizing(!isRandomizing);
+  };
 
   // Updated handleUndo function with console logging.
   const handleUndo = useCallback(() => {
@@ -390,8 +416,6 @@ function App() {
     const timer = setTimeout(() => {
       setFlashingNodes([]);
     }, 8000);
-
-    // TODO: change to flash until fixed?
 
     return () => {
       clearTimeout(timer);
@@ -765,8 +789,8 @@ function App() {
       <button onClick={handleUndo} className="undo-button">
         Undo
       </button>
-      <button onClick={() => {}} className="randomize-button">
-        Randomize
+      <button onClick={handleRandomize} className="randomize-button">
+        {isRandomizing ? 'Stop Randomizing' : 'Randomize'}
       </button>
       {!selectedLevel ? (
         <div className="level-selector">
