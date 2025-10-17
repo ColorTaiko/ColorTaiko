@@ -1,3 +1,8 @@
+// try bound of 21 by 21 on last level
+// remove music on different branch
+
+// if not greedy, backtracking?
+
 import { useState, useRef, useEffect, useCallback } from "react";
 
 import { generateColor } from "./utils/colorUtils";
@@ -5,21 +10,17 @@ import { getPreviewColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
 import { checkAndGroupConnections, predictPairFinalColor } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
+import { calculateScore } from "./utils/calculateScore";
 import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
-import { appendHorizontalEdges, clearPatternLog } from "./utils/patternLog";
-import { makeInitialHistoryEntry, rebuildProcessedPairKeys, restorePatternLogFromSnapshot, fixColorsAfterUndo } from "./utils/historyUtils";
-import { noFoldPreflightWithPatternLog } from "./utils/noFold";
-import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
-import { levelsWithNoPattern } from "./utils/levels";
+import { appendHorizontalEdges, clearPatternLog, rebuildPatternLog } from "./utils/patternLog";
 // import { checkOrientation } from "./utils/checkOrientation";
-import { generateRandomGraph } from "./utils/randomGraph";
+// import { generateRandomGraph } from "./utils/randomGraph";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
 import TaikoNode from "./components/TaikoNodes/TaikoNode";
 import ErrorModal from "./components/ErrorModal";
-import NoFoldViolationModal from "./components/NoFoldViolationModal";
 import SettingsMenu from "./components/ToolMenu/settingMenu";
 import ProgressBar from "./components/ProgressBar/progressBar";
 import Title from "./components/title";
@@ -27,9 +28,7 @@ import { useAudio } from "./hooks/useAudio";
 import { useSettings } from "./hooks/useSetting";
 
 // import {checkGirth} from "./utils/girth"
-import LevelTreeModal from "./components/LevelTreeModal/LevelTreeModal";
-import MiniLevelSelector from "./components/LevelTreeModal/MiniLevelSelector";
-import { levelGraph, levelDescriptions, runLevelChecks } from "./utils/levels";
+import { runLevelChecks } from "./utils/levels";
 
 const buildPairKey = (pair) => {
   if (!Array.isArray(pair)) return "";
@@ -46,23 +45,6 @@ const buildPairKey = (pair) => {
   return JSON.stringify(normalized);
 };
 
-const LAST_LEVEL_KEY = "color-taiko:last-level";
-
-const levelAliasMap = {
-  "Level 1": "Level 1",
-  "Level 2": "Level 2",
-  "Level 3.NF": "Level 3.NF",
-  "Level 3.G4": "Level 3.G4",
-  "Level 4.NF+NP": "Level 4.NF+NP",
-  "Level 4.NF+G4": "Level 4.NF+G4",
-  "Level 5.NF+NP+G4": "Level 5.NF+NP+G4",
-  "Level 5.NF+NP+G6": "Level 5.NF+NP+G6",
-};
-
-const validRuntimeLevels = Object.values(levelAliasMap).filter(Boolean);
-
-const NO_FOLD_FLASH_DURATION = 1600;
-
 function App() {
   // Game state management
   const [topRowCount, setTopRowCount] = useState(1);
@@ -78,22 +60,45 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const svgRef = useRef(null);
   const groupMapRef = useRef(new Map());
+  const connectionsRef = useRef(connections);
+  const connectionPairsRef = useRef(connectionPairs);
+  const connectionGroupsRef = useRef(connectionGroups);
+  const topRowCountRef = useRef(topRowCount);
+  const bottomRowCountRef = useRef(bottomRowCount);
+  const edgeStateRef = useRef(edgeState);
+  const currentColorRef = useRef(currentColor);
+  const levelRef = useRef("level");
   const previousProgressRef = useRef(progress);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [flashingNodes, setFlashingNodes] = useState([]);
+  const [endpointStatusMap, setEndpointStatusMap] = useState({}); // id -> { status: 'valid'|'invalid', reason?: string }
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
+  const maxTopRef = useRef(null);
+  const maxBottomRef = useRef(null);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomizingTimer, setRandomizingTimer] = useState(null);
   const [currentLineEl, setCurrentLineEl] = useState(null);
-  const [level, setLevel] = useState(null);
+  const [level, setLevel] = useState("level");
 
   const [selectedLevel, setSelectedLevel] = useState(null);
-  const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
+  const [isDropdownDisabled, setIsDropdownDisabled] = useState(false);
 
-  const [history, setHistory] = useState([makeInitialHistoryEntry()]);
+  const [history, setHistory] = useState([
+    {
+      connections: [],
+      connectionPairs: [],
+      connectionGroups: [],
+      topRowCount: 1,
+      bottomRowCount: 1,
+      edgeState: null,
+      groupMap: new Map(),
+      topOrientationMap: new Map(),
+      botOrientationMap: new Map(),
+    },
+  ]);
   const [currentStep, setCurrentStep] = useState(0);
 
   // Maintain an append‑only log of connection actions.
@@ -107,28 +112,10 @@ function App() {
     bottomSequence: []
   });
 
-  const handleLevelSelect = (levelLabel) => {
-    if (!levelLabel) return;
-
-    const mappedLevel = levelAliasMap[levelLabel];
-
-    if (!mappedLevel) {
-      setErrorMessage(`Level "${levelLabel}" is not available yet.`);
-      return;
-    }
-
-    if (mappedLevel !== level) {
-      handleClear();
-    }
-
-    setSelectedLevel(levelLabel);
-    setLevel(mappedLevel);
-    try {
-      localStorage.setItem(LAST_LEVEL_KEY, mappedLevel);
-    } catch (storageError) {
-      console.warn("Unable to persist last level selection", storageError);
-    }
-    setIsLevelModalOpen(false);
+  const handleLevelChange = (event) => {
+    setSelectedLevel(event.target.value);
+    setLevel(event.target.value);
+    setIsDropdownDisabled(true); // Disable dropdown after selection.
   };
 
   // Custom hooks for managing audio and settings.
@@ -142,67 +129,16 @@ function App() {
     setBlackDotEffect,
     lightMode,
     setLightMode,
+    maxTopNodes,
+    setMaxTopNodes,
+    maxBottomNodes,
+    setMaxBottomNodes,
   } = useSettings();
 
   // References for SVG elements and connection groups.
   const [showSettings, setShowSettings] = useState(false);
-  const iconRef = useRef(null);
   const [welcomeMessage, setWelcomeMessage] = useState(false);
   const [Percent100Message, setPercent100Message] = useState(false);
-  const [noFoldModalData, setNoFoldModalData] = useState(null); // {code,message,violations}
-  const [noFoldViolationState, setNoFoldViolationState] = useState(null); // {highlights,shouldUndoAfterFlash,code}
-  const [showClearConfirm, setShowClearConfirm] = useState(false); //new state for clear confirm
-  const noFoldHighlightedElementsRef = useRef([]);
-  const noFoldModalTimerRef = useRef(null);
-  const noFoldViolationStateRef = useRef(null);
-   const undoIntervalRef = useRef(null); //new state for undo interval
-
-  useEffect(() => {
-    // Close settings menu on outside click (use click bubbling to not preempt inputs)
-    if (!showSettings) return;
-    const handleOutsideClick = (e) => {
-      const menu = document.querySelector('.settings-menu');
-      const clickedInsideMenu = menu && menu.contains(e.target);
-      const clickedIcon = iconRef.current && iconRef.current.contains(e.target);
-      if (!clickedInsideMenu && !clickedIcon) {
-        setShowSettings(false);
-      }
-    };
-    window.addEventListener('click', handleOutsideClick);
-    return () => window.removeEventListener('click', handleOutsideClick);
-  }, [showSettings]);
-
-  // Position the settings menu directly under the icon, centered (with slight horizontal bias)
-  useEffect(() => {
-    if (!showSettings) return;
-    const positionMenu = () => {
-      const iconEl = iconRef.current;
-      const menuEl = document.querySelector('.settings-menu');
-      if (!iconEl || !menuEl) return;
-      const iconRect = iconEl.getBoundingClientRect();
-      const menuRect = menuEl.getBoundingClientRect();
-      const margin = 8;
-      // Horizontal bias shifts the menu slightly to the right relative to perfect centering.
-      const horizontalBias = 10; // pixels: move left edge right by ~10px as requested
-      let left = iconRect.left + iconRect.width / 2 - menuRect.width / 2 + horizontalBias;
-      left = Math.max(margin, Math.min(window.innerWidth - menuRect.width - margin, left));
-      const top = iconRect.bottom + margin;
-      // Apply directly to the menu element
-      menuEl.style.left = `${left}px`;
-      menuEl.style.top = `${top}px`;
-    };
-    positionMenu();
-    window.addEventListener('resize', positionMenu);
-    window.addEventListener('scroll', positionMenu, true);
-    return () => {
-      window.removeEventListener('resize', positionMenu);
-      window.removeEventListener('scroll', positionMenu, true);
-    };
-  }, [showSettings]);
-
-  useEffect(() => {
-    noFoldViolationStateRef.current = noFoldViolationState;
-  }, [noFoldViolationState]);
 
   // Function to save current state to history.
   const saveToHistory = () => {
@@ -216,11 +152,27 @@ function App() {
       groupMap: structuredClone(groupMapRef.current),
       topOrientationMap: structuredClone(topOrientation.current),
       botOrientationMap: structuredClone(botOrientation.current),
-      currentColorIndex: currentColor,
     };
 
     setHistory([...history, newState]);
     setCurrentStep(currentStep + 1);
+  };
+
+  const saveToHistoryNow = () => {
+    const newState = {
+      connections: structuredClone(connectionsRef.current),
+      connectionPairs: structuredClone(connectionPairsRef.current),
+      connectionGroups: structuredClone(connectionGroupsRef.current),
+      topRowCount: topRowCountRef.current,
+      bottomRowCount: bottomRowCountRef.current,
+      edgeState: edgeStateRef.current,
+      groupMap: structuredClone(groupMapRef.current),
+      topOrientationMap: structuredClone(topOrientation.current),
+      botOrientationMap: structuredClone(botOrientation.current),
+    };
+
+    setHistory((h) => [...h, newState]);
+    setCurrentStep((s) => s + 1);
   };
 
   // Helper to print the full connection log.
@@ -233,17 +185,189 @@ function App() {
     console.log(`Updated connection order: ${fullLog}`);
   }, []);
 
-  // Begin timeout events for randomizer
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
+  useEffect(() => {
+    connectionPairsRef.current = connectionPairs;
+  }, [connectionPairs]);
+  useEffect(() => {
+    connectionGroupsRef.current = connectionGroups;
+  }, [connectionGroups]);
+  useEffect(() => {
+    topRowCountRef.current = topRowCount;
+  }, [topRowCount]);
+  useEffect(() => {
+    bottomRowCountRef.current = bottomRowCount;
+  }, [bottomRowCount]);
+  useEffect(() => {
+    edgeStateRef.current = edgeState;
+  }, [edgeState]);
+  useEffect(() => {
+    currentColorRef.current = currentColor;
+  }, [currentColor]);
+  useEffect(() => {
+    levelRef.current = level;
+  }, [level]);
+
+  // Begin timeout events for randomize
   const startRandomize = () => {
     const timer = setInterval(() => {
-      console.log('RANDOMIZING');
-    }, 1000);
+      const maxAttempts = 20000;
+      const candidates = [];
+
+      // Precompute node degrees to bias sampling towards higher-degree vertices.
+      const tCount = topRowCountRef.current;
+      const bCount = bottomRowCountRef.current;
+      if (tCount <= 0 || bCount <= 0) {
+        // nothing to do
+      } else {
+        const topDegrees = Array.from({ length: tCount }, (_, i) => 0);
+        const botDegrees = Array.from({ length: bCount }, (_, i) => 0);
+        for (const c of connectionsRef.current) {
+          if (!Array.isArray(c.nodes)) continue;
+          for (const nid of c.nodes) {
+            if (typeof nid !== 'string') continue;
+            if (nid.startsWith('top-')) {
+              const idx = parseInt(nid.split('-')[1], 10);
+              if (!Number.isNaN(idx) && idx >= 0 && idx < tCount) topDegrees[idx]++;
+            } else if (nid.startsWith('bottom-')) {
+              const idx = parseInt(nid.split('-')[1], 10);
+              if (!Number.isNaN(idx) && idx >= 0 && idx < bCount) botDegrees[idx]++;
+            }
+          }
+        }
+
+        // Build sampling weights (degree + 1) so higher-degree nodes are more likely.
+        const topWeights = topDegrees.map((d) => d + 1);
+        const botWeights = botDegrees.map((d) => d + 1);
+
+        const sampleIndexByWeights = (weights) => {
+          const total = weights.reduce((s, w) => s + w, 0);
+
+          let r = Math.random() * total;
+          for (let i = 0; i < weights.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return i;
+          }
+
+          return Math.floor(Math.random() * (weights.length - 0));
+        };
+
+        for (let attempt = 0; attempt < maxAttempts && candidates.length < 10000; attempt++) {
+          const topIdx = sampleIndexByWeights(topWeights);
+          const botIdx = sampleIndexByWeights(botWeights);
+          const topId = `top-${topIdx}`;
+          const botId = `bottom-${botIdx}`;
+
+        const alreadyConnected = connectionsRef.current.some(
+          (c) => c.nodes.includes(topId) && c.nodes.includes(botId)
+        );
+        if (alreadyConnected) continue;
+
+        const pending = edgeStateRef.current;
+
+        if (pending) {
+          if (pending.nodes.includes(topId) || pending.nodes.includes(botId)) continue;
+
+          const newConnection = { nodes: [topId, botId], color: pending.color };
+          const candidatePair = [pending, newConnection];
+          const validation = runLevelChecks(levelRef.current, candidatePair, {
+            groupMapRef,
+            topOrientation,
+            botOrientation,
+            connections: connectionsRef.current,
+            connectionPairs: connectionPairsRef.current,
+            topRowCount: topRowCountRef.current,
+            bottomRowCount: bottomRowCountRef.current,
+            patternLog: patternLogRef.current,
+          }, setFlashingNodes);
+
+          if (!validation.ok) continue;
+
+          // simulate resulting state for scoring
+          const simulatedConnections = [...connectionsRef.current, newConnection];
+          const prevPairs = connectionPairsRef.current;
+          const lastPair = prevPairs[prevPairs.length - 1];
+          const simulatedPairs = lastPair && lastPair.length === 1
+            ? [...prevPairs.slice(0, -1), [...lastPair, newConnection]]
+            : [...prevPairs, [pending, newConnection]];
+
+
+          let simulatedTopCount = topRowCountRef.current;
+          let simulatedBottomCount = bottomRowCountRef.current;
+          for (const conn of simulatedConnections) {
+            const [node1, node2] = conn.nodes;
+            const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+            simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+          }
+
+          const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+          // respect max bounds while collecting candidates
+          const maxTop = maxTopRef.current ?? maxTopNodes;
+          const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+          if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+            candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
+          }
+        } else {
+          const newColor = generateColor(currentColorRef.current, setCurrentColor, connectionPairsRef.current);
+          const newConnection = { nodes: [topId, botId], color: newColor };
+
+          const simulatedConnections = [...connectionsRef.current, newConnection];
+          const simulatedPairs = [...connectionPairsRef.current, [newConnection]];
+          
+          let simulatedTopCount = topRowCountRef.current;
+          let simulatedBottomCount = bottomRowCountRef.current;
+          for (const conn of simulatedConnections) {
+            const [node1, node2] = conn.nodes;
+            const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+            simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+          }
+
+          const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+          const maxTop = maxTopRef.current ?? maxTopNodes;
+          const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+          if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+            candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+          }
+        }
+  }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  if (candidates.length > 0) {
+        const best = candidates[0];
+
+        console.log(best);
+
+        // commit the best candidate atomically
+        saveToHistoryNow();
+        setConnections(best.simulatedConnections);
+        setConnectionPairs(best.simulatedPairs);
+        if (best.type === 'single') {
+          setEdgeState(best.newConnection);
+          connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+        } else {
+          setEdgeState(null);
+          connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+        }
+        printFullConnectionLog();
+      }
+    }, 2000);
 
     setRandomizingTimer(timer);
   };
 
   const stopRandomize = () => {
-    clearTimeout(randomizingTimer);
+    if (randomizingTimer) {
+      clearInterval(randomizingTimer);
+      setIsRandomizing(false);
+    }
     setRandomizingTimer(null);
   };
 
@@ -260,16 +384,6 @@ function App() {
   // Updated handleUndo function with console logging.
   const handleUndo = useCallback(() => {
     if (currentStep > 0) {
-      // Prevent any pending auto-undo from firing after this manual undo
-      if (noFoldViolationStateRef.current?.shouldUndoAfterFlash) {
-        noFoldViolationStateRef.current = null;
-        setNoFoldViolationState(null);
-        setNoFoldModalData(null);
-        if (noFoldModalTimerRef.current) {
-          clearTimeout(noFoldModalTimerRef.current);
-          noFoldModalTimerRef.current = null;
-        }
-      }
       console.log("Before undo:");
       console.log("connections:", connections);
       console.log("connectionPairs:", connectionPairs);
@@ -285,28 +399,34 @@ function App() {
       console.log("topOrientation:", topOrientation.current);
       console.log("botOrientation:", botOrientation.current);
 
-      // Take the snapshot we saved before the last user action
       const previousState = history[currentStep];
 
-      // Normalize snapshot colors via helper before restoring
-      fixColorsAfterUndo(previousState);
-
-      processedPairKeysRef.current = rebuildProcessedPairKeys(previousState.connectionPairs, buildPairKey);
+      const processedKeys = new Set();
+      previousState.connectionPairs.forEach((pair) => {
+        if (Array.isArray(pair) && pair.length === 2) {
+          const key = buildPairKey(pair);
+          if (key) {
+            processedKeys.add(key);
+          }
+        }
+      });
+      processedPairKeysRef.current = processedKeys;
       
       // Rebuild pattern log from previous state
-      restorePatternLogFromSnapshot(patternLogRef, previousState);
+      rebuildPatternLog(
+        patternLogRef.current,
+        previousState.connectionPairs,
+        { current: new Map(previousState.topOrientationMap) },
+        { current: new Map(previousState.botOrientationMap) }
+      );
 
-  // Restore state variables.
-  setConnections(previousState.connections);
+      // Restore state variables.
+      setConnections(previousState.connections);
       setConnectionPairs(previousState.connectionPairs);
       setConnectionGroups(previousState.connectionGroups);
       setTopRowCount(previousState.topRowCount);
       setBottomRowCount(previousState.bottomRowCount);
       setEdgeState(previousState.edgeState);
-      // Restore current color index for future generated colors
-      if (typeof previousState.currentColorIndex === 'number') {
-        setCurrentColor(previousState.currentColorIndex);
-      }
 
       // Restore ref values.
       groupMapRef.current = new Map(previousState.groupMap);
@@ -359,143 +479,6 @@ function App() {
     printFullConnectionLog,
   ]);
 
-  const clearNoFoldEffects = useCallback(
-    (options = {}) => {
-      const { skipUndo = false } = options;
-
-      if (noFoldModalTimerRef.current) {
-        clearTimeout(noFoldModalTimerRef.current);
-        noFoldModalTimerRef.current = null;
-      }
-
-      if (noFoldHighlightedElementsRef.current.length > 0) {
-        noFoldHighlightedElementsRef.current.forEach((element) => {
-          if (element?.classList) {
-            element.classList.remove("no-fold-violation-flash");
-          }
-        });
-        noFoldHighlightedElementsRef.current = [];
-      }
-
-      const latestState = noFoldViolationStateRef.current;
-      if (!skipUndo && latestState?.shouldUndoAfterFlash) {
-        handleUndo();
-      }
-
-      if (noFoldViolationStateRef.current) {
-        setNoFoldViolationState(null);
-      }
-    },
-    [handleUndo]
-  );
-
-  const triggerNoFoldFeedback = useCallback(
-    (result, options = {}) => {
-      const { message, violations, code } = result || {};
-      const shouldAutoUndo = options.autoUndo ?? false;
-
-      if (!Array.isArray(violations) || violations.length === 0) {
-        clearNoFoldEffects({ skipUndo: true });
-        setNoFoldModalData(null);
-        setNoFoldViolationState(null);
-        setErrorMessage(message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'));
-        if (shouldAutoUndo) {
-          handleUndo();
-        }
-        return;
-      }
-
-      setErrorMessage("");
-      clearNoFoldEffects({ skipUndo: true });
-      setNoFoldModalData(null);
-
-      const seen = new Set();
-      const highlights = [];
-
-      violations.forEach((detail) => {
-        const sequence = detail?.sequence || "top";
-        if (!Array.isArray(detail?.edges)) return;
-        detail.edges.forEach((edge) => {
-          if (!edge?.id) return;
-          const key = `${sequence}:${edge.id}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              highlights.push({ sequence, edgeId: edge.id });
-            }
-        });
-      });
-
-      setNoFoldViolationState({
-        highlights,
-        shouldUndoAfterFlash: shouldAutoUndo,
-        message: message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'),
-        violations,
-        code: code || 'NO_FOLD'
-      });
-    },
-    [clearNoFoldEffects, handleUndo]
-  );
-
-  const handleNoFoldModalClose = useCallback(() => {
-    setNoFoldModalData(null);
-    clearNoFoldEffects();
-  }, [clearNoFoldEffects]);
-
-  /**
-   * Adds ctrl + z shortcut (when holds, does not repeatedly perform undo)
-   */
-  const handleUndoRef = useRef(handleUndo);
-  useEffect(() => {
-    handleUndoRef.current = handleUndo;
-  }, [handleUndo]);
-
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      // if (event.repeat) {
-      //   return;
-      // }
-      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
-        event.preventDefault();
-        console.log("Undo");
-        // handleUndo();
-        if (!event.repeat) {
-          handleUndoRef.current(); 
-          
-          if (undoIntervalRef.current) {
-            clearInterval(undoIntervalRef.current);
-          }
-          
-          undoIntervalRef.current = setInterval(() => {
-            handleUndoRef.current(); 
-          }, 2000);
-        }
-      }
-    };
-
-    // window.addEventListener('keydown', handleKeyDown);
-    // return () => window.removeEventListener('keydown', handleKeyDown);
-    const handleKeyUp = (event) => {
-      if (event.key === 'z' || event.key === 'Control' || event.key === 'Meta') {
-        if (undoIntervalRef.current) {
-          clearInterval(undoIntervalRef.current);
-          undoIntervalRef.current = null;
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      if (undoIntervalRef.current) {
-        clearInterval(undoIntervalRef.current);
-        // undoIntervalRef.current = null;
-      }
-    };
-  }, []);
-
   /**
    * Sets welcome message visibility based on the number of nodes in each row.
    */
@@ -504,26 +487,6 @@ function App() {
       setWelcomeMessage(true);
     }
   }, [topRowCount, bottomRowCount]);
-
-  useEffect(() => {
-    try {
-      const storedLevel = localStorage.getItem(LAST_LEVEL_KEY);
-      if (storedLevel && validRuntimeLevels.includes(storedLevel)) {
-        const displayLevel = Object.entries(levelAliasMap).find(
-          ([, runtime]) => runtime === storedLevel
-        )?.[0];
-        setSelectedLevel(displayLevel ?? "Level 1");
-        setLevel(storedLevel);
-      } else {
-        setSelectedLevel("Level 1");
-        setLevel("Level 1");
-      }
-    } catch (storageError) {
-      console.warn("Unable to read last level selection", storageError);
-      setSelectedLevel("Level 1");
-      setLevel("Level 1");
-    }
-  }, []);
 
   /**
    * Draws connections on the SVG element when related state changes.
@@ -546,93 +509,6 @@ function App() {
     offset,
   ]);
 
-  useEffect(() => {
-    if (!noFoldViolationState || !Array.isArray(noFoldViolationState.highlights)) {
-      return;
-    }
-
-    const { highlights, message, violations, code } = noFoldViolationState;
-    const svgEl = svgRef.current;
-
-    if (!svgEl) {
-      if (noFoldModalTimerRef.current) {
-        clearTimeout(noFoldModalTimerRef.current);
-      }
-      noFoldModalTimerRef.current = setTimeout(() => {
-        setNoFoldModalData({
-          message: message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'),
-          violations,
-          code
-        });
-        noFoldModalTimerRef.current = null;
-      }, NO_FOLD_FLASH_DURATION);
-      return;
-    }
-
-    if (noFoldHighlightedElementsRef.current.length > 0) {
-      noFoldHighlightedElementsRef.current.forEach((element) => {
-        if (element?.classList) {
-          element.classList.remove("no-fold-violation-flash");
-        }
-      });
-      noFoldHighlightedElementsRef.current = [];
-    }
-
-    const edgeElements = Array.from(svgEl.querySelectorAll("[data-edge-id]"));
-    const newlyHighlighted = [];
-
-    highlights.forEach(({ sequence, edgeId }) => {
-      edgeElements.forEach((element) => {
-        if (
-          element.getAttribute("data-edge-id") === edgeId &&
-          element.getAttribute("data-sequence") === sequence
-        ) {
-          if (!element.classList.contains("no-fold-violation-flash")) {
-            element.classList.add("no-fold-violation-flash");
-          }
-          newlyHighlighted.push(element);
-        }
-      });
-    });
-
-    if (newlyHighlighted.length === 0) {
-      if (noFoldModalTimerRef.current) {
-        clearTimeout(noFoldModalTimerRef.current);
-      }
-      noFoldModalTimerRef.current = setTimeout(() => {
-        setNoFoldModalData({
-          message: message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'),
-          violations,
-          code
-        });
-        noFoldModalTimerRef.current = null;
-      }, NO_FOLD_FLASH_DURATION);
-      return;
-    }
-
-    noFoldHighlightedElementsRef.current = newlyHighlighted;
-
-    if (noFoldModalTimerRef.current) {
-      clearTimeout(noFoldModalTimerRef.current);
-    }
-
-    noFoldModalTimerRef.current = setTimeout(() => {
-      setNoFoldModalData({
-        message: message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'),
-        violations,
-        code
-      });
-      noFoldModalTimerRef.current = null;
-    }, NO_FOLD_FLASH_DURATION);
-
-    return () => {
-      if (noFoldModalTimerRef.current) {
-        clearTimeout(noFoldModalTimerRef.current);
-        noFoldModalTimerRef.current = null;
-      }
-    };
-  }, [noFoldViolationState, setNoFoldModalData]);
-
   /**
    * Checks if new nodes should be added based on current connections.
    */
@@ -642,9 +518,20 @@ function App() {
       bottomRowCount,
       connections,
       setTopRowCount,
-      setBottomRowCount
+      setBottomRowCount,
+      maxTopNodes,
+      maxBottomNodes
     );
   }, [connections, topRowCount, bottomRowCount]);
+
+  // keep refs of maxes for interval closure
+  useEffect(() => {
+    maxTopRef.current = maxTopNodes;
+  }, [maxTopNodes]);
+
+  useEffect(() => {
+    maxBottomRef.current = maxBottomNodes;
+  }, [maxBottomNodes]);
 
   /**
    * Calculates progress as a percentage based on completed connections.
@@ -660,6 +547,7 @@ function App() {
 
       if (newProgress === 100) {
         setPercent100Message(true);
+        clearInterval(randomizingTimer);
         if (soundBool) {
           perfectAudio.play();
         }
@@ -677,8 +565,7 @@ function App() {
    */
   useEffect(() => {
     const handleResize = () => {
-      // On resize, also pass orientation refs so arrows/horizontal edges are redrawn correctly
-      drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation);
+      drawConnections(svgRef, connections, connectionPairs, offset);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -730,41 +617,82 @@ function App() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [isDraggingLine, currentLineEl]);
 
+  // Compute endpoint validity border
   useEffect(() => {
-    const handleMouseUp = (e) => {
-      if (!isDraggingLine) return;
-      // If we're dragging (one node selected) and mouse up occurred on blank area (not a node)
-      // then cancel the selection.
-      const target = e.target;
-      // Treat it as a node click if the event target or any ancestor has an id starting with top- or bottom-
-      let isNode = false;
-      if (target && typeof target.closest === 'function') {
-        const nodeEl = target.closest("[id^='top-'], [id^='bottom-']");
-        isNode = !!nodeEl;
-      }
-      if (!isNode && selectedNodes.length === 1) {
-        // remove the temporary line
-        if (currentLineEl && svgRef.current.contains(currentLineEl)) {
-          svgRef.current.removeChild(currentLineEl);
+    const map = {};
+    if (selectedNodes.length === 1) {
+      const startNode = selectedNodes[0];
+      const isTopStart = startNode.startsWith("top");
+      const tCount = topRowCountRef.current;
+      const bCount = bottomRowCountRef.current;
+
+      const checkCandidate = (candidateId) => {
+        if (!candidateId || candidateId === startNode) return { status: 'invalid', reason: 'Same node' };
+
+        const isTopCand = candidateId.startsWith("top");
+        if ((isTopStart && isTopCand) || (!isTopStart && !isTopCand)) return { status: 'invalid', reason: 'Cannot connect nodes in the same row' };
+
+        const dup = connectionsRef.current.some(
+          (c) => c.nodes.includes(startNode) && c.nodes.includes(candidateId)
+        );
+        if (dup) return { status: 'invalid', reason: 'These vertices are already connected' };
+
+        const pending = edgeStateRef.current;
+        if (pending) {
+          if (pending.nodes.includes(startNode) || pending.nodes.includes(candidateId)) return { status: 'invalid', reason: 'Pending edge shares a vertex' };
+
+          const newConn = { nodes: [startNode, candidateId], color: pending.color };
+          const validation = runLevelChecks(levelRef.current, [pending, newConn], {
+            groupMapRef,
+            topOrientation,
+            botOrientation,
+            connections: connectionsRef.current,
+            connectionPairs: connectionPairsRef.current,
+            topRowCount: topRowCountRef.current,
+            bottomRowCount: bottomRowCountRef.current,
+            patternLog: patternLogRef.current,
+          }, () => {});
+          if (validation && validation.ok) return { status: 'valid' };
+
+          const reason = validation && validation.message ? validation.message : 'Rule check failed';
+          return { status: 'invalid', reason };
         }
-        setSelectedNodes([]);
-        setHighlightedNodes([]);
-        setIsDraggingLine(false);
-        setCurrentLineEl(null);
-        return;
+
+        return { status: 'valid' };
+      };
+
+      if (isTopStart) {
+        for (let i = 0; i < bCount; i++) {
+          const id = `bottom-${i}`;
+          map[id] = checkCandidate(id);
+        }
+      } else {
+        for (let i = 0; i < tCount; i++) {
+          const id = `top-${i}`;
+          map[id] = checkCandidate(id);
+        }
       }
-      // Existing fallback: mouse up without completing second node also cleans up line
+    }
+
+    setEndpointStatusMap(map);
+  }, [selectedNodes, connections, connectionPairs, edgeState, topRowCount, bottomRowCount]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
       if (isDraggingLine && !selectedNodes[1]) {
         if (currentLineEl && svgRef.current.contains(currentLineEl)) {
           svgRef.current.removeChild(currentLineEl);
         }
         setIsDraggingLine(false);
+  // setStartNode(null);
         setCurrentLineEl(null);
       }
     };
     window.addEventListener("mouseup", handleMouseUp);
     return () => window.removeEventListener("mouseup", handleMouseUp);
-  }, [isDraggingLine, currentLineEl, selectedNodes, svgRef]);
+  }, [isDraggingLine, currentLineEl, selectedNodes]);
+
+  // Removes flashing effect after timeout
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -772,9 +700,9 @@ function App() {
     }, 8000);
 
     return () => {
-      clearNoFoldEffects({ skipUndo: true });
+      clearTimeout(timer);
     };
-  }, [clearNoFoldEffects]);
+  }, [flashingNodes]);
 
   /**
    * Groups connections when a new connection pair is completed.
@@ -794,16 +722,30 @@ function App() {
           topRowCount,
           bottomRowCount,
           patternLog: patternLogRef.current,
-        }, setFlashingNodes);
+        }, setFlashingNodes, false);
         if (!validation.ok) {
-          setSelectedNodes([]);
-          setHighlightedNodes([]);
-          if (validation.code === "NO_FOLD" || validation.code === "ORIENTATION") {
-            triggerNoFoldFeedback(validation, { autoUndo: true });
-          } else {
-            setErrorMessage(validation.message || "Level condition failed!");
-            handleUndo();
+          let message = validation.message;
+          
+          if (validation.patterns && Array.isArray(validation.patterns) && validation.patterns.length > 0) {
+            const parts = validation.patterns.map((p, idx) => {
+              const toName = (pt) => {
+                const q = pt.split('-');
+
+                if (q[0] == 'top') {
+                  return `b${parseInt(q[1]) + 1}`;
+                }
+
+                return `a${parseInt(q[1]) + 1}`;
+              }
+
+              return `Pattern ${idx + 1}: <div style="background: ${p.color1}; width: 18px; height: 18px; display: inline-block;"></div> ${p.orientation1} and <div style="background: ${p.color2}; width: 18px; height: 18px; display: inline-block;"></div> ${p.orientation2} at ${toName(p.pt2)}`;
+            });
+            message = `${message} \n ${parts.join('; ')}`;
           }
+
+          setErrorMessage(message);
+          setSelectedNodes([]);
+          handleUndo();
           return;
         }
         processedPairKeysRef.current.add(pairKey);
@@ -838,34 +780,22 @@ function App() {
           setConnections,
           connectionPairs
         );
-
-        // Redraw after orientation updates so arrows appear immediately
-        try {
-          drawConnections(
-            svgRef,
-            connections,
-            connectionPairs,
-            offset,
-            topOrientation,
-            botOrientation
-          );
-        } catch (e) {
-          console.warn('Redraw after orientation update failed', e);
-        }
       }
     }
     console.log("topOrientation", topOrientation);
     console.log("botOrientation", botOrientation);
     console.log("groupMapRef", groupMapRef);
-  }, [connectionPairs, level, connections, topRowCount, bottomRowCount, handleUndo, offset, triggerNoFoldFeedback]);
+  }, [connectionPairs, level, connections, topRowCount, bottomRowCount, handleUndo]);
 
   const createTopRow = (count) =>
     Array.from({ length: count }, (_, i) => (
-      <TaikoNode
+        <TaikoNode
         key={`top-${i}`}
         id={`top-${i}`}
         onClick={() => handleNodeClick(`top-${i}`)}
         isSelected={selectedNodes.includes(`top-${i}`)}
+        endpointStatus={endpointStatusMap[`top-${i}`]?.status}
+        endpointReason={endpointStatusMap[`top-${i}`]?.reason}
         index={i}
         totalCount={topRowCount}
         isFaded={count > 1 && i === count - 1}
@@ -879,11 +809,13 @@ function App() {
 
   const createBottomRow = (count) =>
     Array.from({ length: count }, (_, i) => (
-      <TaikoNode
+        <TaikoNode
         key={`bottom-${i}`}
         id={`bottom-${i}`}
         onClick={() => handleNodeClick(`bottom-${i}`)}
         isSelected={selectedNodes.includes(`bottom-${i}`)}
+        endpointStatus={endpointStatusMap[`bottom-${i}`]?.status}
+        endpointReason={endpointStatusMap[`bottom-${i}`]?.reason}
         index={i}
         totalCount={bottomRowCount}
         isFaded={count > 1 && i === count - 1}
@@ -897,16 +829,12 @@ function App() {
 
   // Updated node click handler.
   const handleNodeClick = (nodeId) => {
-    if (noFoldViolationState) {
-      return;
-    }
-
     setErrorMessage("");
 
     if (soundBool) clickAudio.play();
 
-    if (!level) {
-      setErrorMessage("Please choose an available level before connecting nodes.");
+    if (!selectedLevel) {
+      setErrorMessage("Please select a level and try again!!!!");
       return;
     }
 
@@ -977,50 +905,22 @@ function App() {
     botOrientation.current.clear();
     processedPairKeysRef.current = new Set();
     clearPatternLog(patternLogRef.current);    // Reset history and clear the connection log.
-    setHistory([makeInitialHistoryEntry()]);
+    setHistory([
+      {
+        connections: [],
+        connectionPairs: [],
+        connectionGroups: [],
+        topRowCount: 1,
+        bottomRowCount: 1,
+        edgeState: null,
+        groupMap: new Map(),
+        topOrientationMap: new Map(),
+        botOrientationMap: new Map(),
+      },
+    ]);
     setCurrentStep(0);
     connectionLogRef.current = [];
   };
-
-  /**
-   * ctrl + K shortcut for the Clear button
-   */
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.repeat) {
-        return;
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
-        event.preventDefault();
-        console.log("Clear");
-        // handleClear();
-        setShowClearConfirm(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleClear]); 
-
-   /**
-   * Handle keyboard shortcuts for clear confirmation modal
-   */
-  useEffect(() => {
-    if (!showClearConfirm) return;
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        handleClear();
-        setShowClearConfirm(false);
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        setShowClearConfirm(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showClearConfirm]);
 
   const handleSoundClick = () => {
     setSoundBool((prev) => !prev);
@@ -1084,59 +984,24 @@ function App() {
       return;
     }
 
+    // Save current state before updating.
+    saveToHistory();
+
     let newColor;
     if (edgeState) {
-      // Preflight noFold using patternLog before committing the second edge
       newColor = edgeState.color;
-      const candidateConnection = { nodes: [node1, node2], color: newColor, seedColor: edgeState.seedColor ?? newColor };
-      const candidatePair = [edgeState, candidateConnection];
-
-      const preflight = noFoldPreflightWithPatternLog(candidatePair, {
-        topOrientation,
-        botOrientation,
-        groupMapRef,
-        patternLog: patternLogRef.current,
-      });
-      if (!preflight.ok) {
-        if (soundBool) errorAudio.play();
-        setSelectedNodes([]);
-        setHighlightedNodes([]);
-        triggerNoFoldFeedback(preflight, { autoUndo: true });
-        return;
-      }
-
-      // Run noPattern preflight only if current level requires it
-      if (levelsWithNoPattern.has(level)) {
-        const npPreflight = noPatternPreflightWithPatternLog(candidatePair, {
-          topOrientation,
-          botOrientation,
-          groupMapRef,
-          patternLog: patternLogRef.current,
-        });
-        if (!npPreflight.ok) {
-          if (soundBool) errorAudio.play();
-          setErrorMessage(npPreflight.message || "No-Pattern condition failed!");
-          setSelectedNodes([]);
-          setHighlightedNodes([]);
-          handleUndo();
-          return;
-        }
-      }
-
-      // Save current state before updating (only after preflight success).
-      saveToHistory();
-
-      setConnections([...connections, candidateConnection]);
+      const newConnection = { nodes: [node1, node2], color: newColor };
+      setConnections([...connections, newConnection]);
       setConnectionPairs((prevPairs) => {
         const lastPair = prevPairs[prevPairs.length - 1];
         let updatedPairs;
         if (lastPair && lastPair.length === 1) {
           updatedPairs = [
             ...prevPairs.slice(0, -1),
-            [...lastPair, candidateConnection],
+            [...lastPair, newConnection],
           ];
         } else {
-          updatedPairs = [...prevPairs, [edgeState, candidateConnection]];
+          updatedPairs = [...prevPairs, [edgeState, newConnection]];
         }
         return updatedPairs;
       });
@@ -1149,9 +1014,7 @@ function App() {
       printFullConnectionLog();
     } else {
       newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
-      const newConnection = { nodes: [node1, node2], color: newColor, seedColor: newColor };
-      // Save current state before updating the first edge of a pair
-      saveToHistory();
+      const newConnection = { nodes: [node1, node2], color: newColor };
       setConnections([...connections, newConnection]);
       setConnectionPairs([...connectionPairs, [newConnection]]);
       setEdgeState(newConnection);
@@ -1176,7 +1039,6 @@ function App() {
       <ProgressBar
         progress={progress}
         connections={connections}
-        connectionGroups={connectionGroups}
         topRowCount={topRowCount}
         bottomRowCount={bottomRowCount}
         lightMode={lightMode}
@@ -1190,23 +1052,11 @@ function App() {
         <div className="welcome-message fade-message">You did it! 100%!</div>
       )}
       <img
-        ref={iconRef}
         src={SettingIconImage}
         alt="Settings Icon"
         className="icon"
         onClick={() => setShowSettings((prev) => !prev)}
       />
-      <div className="level-icon-wrapper">
-        <MiniLevelSelector
-          graph={levelGraph}
-          selectedLevel={selectedLevel}
-          onSelect={handleLevelSelect}
-          onOpenFull={() => setIsLevelModalOpen(true)}
-        />
-        {selectedLevel && (
-          <span className="level-icon__caption">{selectedLevel}</span>
-        )}
-      </div>
       {showSettings && (
         <SettingsMenu
           offset={offset}
@@ -1217,53 +1067,20 @@ function App() {
           onToggleBlackDotEffect={toggleBlackDotEffect}
           lightMode={lightMode}
           onToggleLightMode={toggleLightMode}
+          maxTop={maxTopNodes}
+          onMaxTopChange={setMaxTopNodes}
+          maxBottom={maxBottomNodes}
+          onMaxBottomChange={setMaxBottomNodes}
         />
       )}
-      <button 
-        onClick={() => setShowClearConfirm(true)}
-        className="clear-button"
-        title="Clear (Press Ctrl+K)"
-      >
+      <button onClick={handleClear} className="clear-button">
         Clear
       </button>
-      <button 
-        onClick={handleUndo} 
-        className="undo-button"
-        title="Undo (Press Ctrl+Z)"
-      >
+      <button onClick={handleUndo} className="undo-button">
         Undo
       </button>
-      <NoFoldViolationModal
-        data={noFoldModalData}
-        onClose={handleNoFoldModalClose}
-      />
-      {showClearConfirm && (
-        <div className="modal-overlay" onClick={() => setShowClearConfirm(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ color: 'red' }}>Warning!</h2>
-            <p style={{ color: 'black' }}>Do you want to clear all?</p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
-              <button 
-                onClick={() => {
-                  handleClear();
-                  setShowClearConfirm(false);
-                }}
-                style={{ padding: '10px 20px', cursor: 'pointer' }}
-              >
-                Yes (Press Enter)
-              </button>
-              <button 
-                onClick={() => setShowClearConfirm(false)}
-                style={{ padding: '10px 20px', cursor: 'pointer' }}
-              >
-                No (Press Esc)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <button onClick={handleRandomize} className="randomize-button">
-        {isRandomizing ? 'Stop Randomizing' : 'Randomize'}
+        {isRandomizing ? 'Stop Generating' : 'Random Taiko'}
       </button>
       {!selectedLevel ? (
         <div className="level-selector">
@@ -1297,14 +1114,6 @@ function App() {
         className="error-container"
         message={errorMessage}
         onClose={() => setErrorMessage("")}
-      />
-      <LevelTreeModal
-        isOpen={isLevelModalOpen}
-        onClose={() => setIsLevelModalOpen(false)}
-        graph={levelGraph}
-        selectedLevel={selectedLevel}
-        onSelect={handleLevelSelect}
-        descriptions={levelDescriptions}
       />
       {showNodes && (
         <div className="game-box">
