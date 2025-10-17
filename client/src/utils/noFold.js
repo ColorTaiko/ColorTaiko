@@ -28,7 +28,8 @@ function cloneSequenceWithCandidate(sequence, candidate) {
 }
 
 function checkSequence(sequence, sequenceName) {
-  const adjacency = new Map(); // from -> Map(color -> to)
+  const adjacency = new Map(); // from -> Map(color -> { to, edgeId })
+  const incoming = new Map(); // to -> Array<{ from, edgeId, color }>
   const foldEdges = new Set();
 
   for (const edge of sequence) {
@@ -39,36 +40,56 @@ function checkSequence(sequence, sequenceName) {
     const [nodeA, nodeB] = edge.nodes;
     const from = edge.orientation === "right" ? nodeA : nodeB;
     const to = edge.orientation === "right" ? nodeB : nodeA;
+    const colorKey = edge.color ?? "__unknown__";
+    const edgeId = edge.id ?? `${from},${to}`;
 
     if (!adjacency.has(from)) {
       adjacency.set(from, new Map());
     }
 
     const outEdges = adjacency.get(from);
+    const existingOut = outEdges.get(colorKey);
 
-    if (outEdges.has(edge.color)) {
-      const existingTo = outEdges.get(edge.color);
-      if (existingTo !== to) {
-        foldEdges.add(edge.id ?? `${from},${to}`);
-        foldEdges.add(`${from},${existingTo}`);
-        console.log(
-          `Fold detected in ${sequenceName}: ${from} has ${edge.color} going to both ${existingTo} and ${to}`
-        );
-      }
-    } else {
-      outEdges.set(edge.color, to);
+    if (existingOut && existingOut.to !== to) {
+      foldEdges.add(edgeId);
+      foldEdges.add(existingOut.edgeId);
+      console.log(
+        `Fold detected in ${sequenceName}: ${from} has ${edge.color ?? "unknown"} going to both ${existingOut.to} and ${to}`
+      );
     }
 
-    if (adjacency.has(to)) {
-      const toOutEdges = adjacency.get(to);
-      if (toOutEdges.has(edge.color) && toOutEdges.get(edge.color) === from) {
-        foldEdges.add(edge.id ?? `${from},${to}`);
-        foldEdges.add(`${to},${from}`);
-        console.log(
-          `Cycle detected in ${sequenceName}: ${from} <-> ${to} with color ${edge.color}`
-        );
-      }
+    outEdges.set(colorKey, { to, edgeId });
+
+    const toOutEdges = adjacency.get(to);
+    const reverseEdge = toOutEdges?.get(colorKey);
+    if (reverseEdge && reverseEdge.to === from) {
+      foldEdges.add(edgeId);
+      foldEdges.add(reverseEdge.edgeId);
+      console.log(
+        `Cycle detected in ${sequenceName}: ${from} <-> ${to} with color ${edge.color ?? "unknown"}`
+      );
     }
+
+    const incomingEdges = incoming.get(to);
+    if (!incomingEdges) {
+      incoming.set(to, [{ from, edgeId, color: edge.color ?? "unknown" }]);
+      continue;
+    }
+
+    const duplicate = incomingEdges.some(({ edgeId: existingId }) => existingId === edgeId);
+    if (duplicate) {
+      continue;
+    }
+
+    for (const existing of incomingEdges) {
+      foldEdges.add(edgeId);
+      foldEdges.add(existing.edgeId);
+      console.log(
+        `Fold detected in ${sequenceName}: ${to} receives ${edge.color ?? "unknown"} from both ${existing.from} and ${from}`
+      );
+    }
+
+    incomingEdges.push({ from, edgeId, color: edge.color ?? "unknown" });
   }
 
   return foldEdges;
