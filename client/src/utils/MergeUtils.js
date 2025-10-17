@@ -118,4 +118,30 @@ export const checkAndGroupConnections = (
     }
     setConnections([...connections]);
   };
+
+  export const predictPairFinalColor = (newPair, groupMap) => {
+    if (!Array.isArray(newPair) || newPair.length !== 2) {
+      return null;
+    }
+
+    const [firstConnection, secondConnection] = newPair;
+    const [top1, bottom1] = firstConnection.nodes;
+    const [top2, bottom2] = secondConnection.nodes;
+
+    const topCombination = [top1, top2].sort().join(',');
+    const bottomCombination = [bottom1, bottom2].sort().join(',');
+
+    const groupTop = groupMap.get(topCombination);
+    const groupBottom = groupMap.get(bottomCombination);
+
+    if (groupBottom) {
+      return groupBottom.color
+    }
+
+    if (groupTop) {
+      return groupTop.color      
+    }
+
+    return firstConnection.color ?? null;
+  };
   

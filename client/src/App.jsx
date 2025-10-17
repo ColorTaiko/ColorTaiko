@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 import { generateColor } from "./utils/colorUtils";
+import { getPreviewColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
-import { checkAndGroupConnections } from "./utils/MergeUtils";
+import { checkAndGroupConnections, predictPairFinalColor } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
@@ -333,6 +334,35 @@ function App() {
         const mouseY = e.clientY - svgRect.top;
         currentLineEl.setAttribute("x2", mouseX);
         currentLineEl.setAttribute("y2", mouseY);
+
+        const defaultColor = "grey";
+
+        /* try to predict the final color accounting for potential folds/merges. */
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        
+        if (el && el.id && typeof el.id === "string") {
+          const hoveredId = el.id;
+          if (edgeState && (hoveredId.startsWith("top-") || hoveredId.startsWith("bottom-"))) {
+
+            const startNode = selectedNodes[0];
+
+            if (startNode) {
+              const isTopStart = startNode.startsWith("top");
+              const node1 = isTopStart ? startNode : hoveredId;
+              const node2 = isTopStart ? hoveredId : startNode;
+
+              if ((isTopStart && hoveredId.startsWith("bottom-")) || (!isTopStart && hoveredId.startsWith("top-"))) {
+                const simulatedSecond = { nodes: [node1, node2], color: edgeState.color };
+                const predicted = predictPairFinalColor([edgeState, simulatedSecond], groupMapRef.current);
+                if (predicted) {
+                  currentLineEl.setAttribute("stroke", predicted);
+                } else {
+                  currentLineEl.setAttribute("stroke", edgeState.color || defaultColor);
+                }
+              }
+            }
+          }
+        }
       }
     };
     window.addEventListener("mousemove", handleMouseMove);
@@ -509,8 +539,10 @@ function App() {
       line.setAttribute("y1", startY);
       line.setAttribute("x2", startX);
       line.setAttribute("y2", startY);
-      line.setAttribute("stroke", "gray");
-      line.setAttribute("stroke-width", "2");
+
+  const initialPreview = edgeState ? edgeState.color : getPreviewColor(connectionPairs);
+  line.setAttribute("stroke", initialPreview || "gray");
+      line.setAttribute("stroke-width", "4");
       line.setAttribute("stroke-dasharray", "5,5");
 
       svgRef.current.appendChild(line);

@@ -95,8 +95,7 @@ export const checkOrientation = (
                 }
                 
                 if (botOrientation.current.has(combo)) {
-                    const dir = botOrientation.current.get(combo);
-                    botOrientation.current.set(combo, dir === "right" ? "left" : "right");
+                    botOrientation.current.set(combo, flipDir(botOrientation.current.get(combo)));
                 }
             }
             if (patternLog && orientationUpdates.length > 0) {
