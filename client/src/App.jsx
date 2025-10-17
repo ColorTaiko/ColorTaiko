@@ -422,16 +422,19 @@ function App() {
           
           if (validation.patterns && Array.isArray(validation.patterns) && validation.patterns.length > 0) {
             const parts = validation.patterns.map((p, idx) => {
-              try {
-                const a = `${p.color1} ${p.orientation1}`;
-                const b = `${p.color2} ${p.orientation2}`;
+              const toName = (pt) => {
+                const q = pt.split('-');
 
-                return `Pattern ${idx + 1}: ${a} => ${b} at ${p.pt1}, ${p.pt2}, ${p.pt3}`;
-              } catch (e) {
-                return `Pattern ${idx + 1}`;
+                if (q[0] == 'top') {
+                  return `b${parseInt(q[1]) + 1}`;
+                }
+
+                return `a${parseInt(q[1]) + 1}`;
               }
+
+              return `Pattern ${idx + 1}: <div style="background: ${p.color1}; width: 18px; height: 18px; display: inline-block;"></div> ${p.orientation1} and <div style="background: ${p.color2}; width: 18px; height: 18px; display: inline-block;"></div> ${p.orientation2} at ${toName(p.pt2)}`;
             });
-            message = `${message} :: ${parts.join('; ')}`;
+            message = `${message} \n ${parts.join('; ')}`;
           }
 
           setErrorMessage(message);
