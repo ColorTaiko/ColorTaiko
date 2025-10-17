@@ -418,7 +418,23 @@ function App() {
           patternLog: patternLogRef.current,
         }, setFlashingNodes);
         if (!validation.ok) {
-          setErrorMessage(validation.message || "Level condition failed!");
+          let message = validation.message;
+          
+          if (validation.patterns && Array.isArray(validation.patterns) && validation.patterns.length > 0) {
+            const parts = validation.patterns.map((p, idx) => {
+              try {
+                const a = `${p.color1} ${p.orientation1}`;
+                const b = `${p.color2} ${p.orientation2}`;
+
+                return `Pattern ${idx + 1}: ${a} => ${b} at ${p.pt1}, ${p.pt2}, ${p.pt3}`;
+              } catch (e) {
+                return `Pattern ${idx + 1}`;
+              }
+            });
+            message = `${message} :: ${parts.join('; ')}`;
+          }
+
+          setErrorMessage(message);
           setSelectedNodes([]);
           handleUndo();
           return;

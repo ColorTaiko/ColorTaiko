@@ -145,11 +145,24 @@ export function noPattern(latestPair, context, setFlashingNodes) {
     return { ok: true };
   } catch (err) {
     if (err instanceof NoPatternError) {
+      const patterns = [];
+
+      for (const [key, val] of err.trioMap.entries()) {
+        patterns.push({
+          key,
+          pt1: val.pt1,
+          pt2: val.pt2,
+          pt3: val.pt3,
+          orientation1: val.orientation1,
+          color1: val.color1,
+          orientation2: val.orientation2,
+          color2: val.color2,
+        });
+      }
+
       setFlashingNodes([...err.trioMap.values().map((o) => [o.pt1, o.pt2, o.pt3])].flat());
 
-      // TODO: Lift side effect outside of noPattern
+      return { ok: false, message: err?.message || 'No-Pattern condition failed!', patterns };
     }
-
-    return { ok: false, message: err?.message || 'No-Pattern condition failed!' };
   }
 }

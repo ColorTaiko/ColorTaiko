@@ -36,8 +36,13 @@ const noFoldCheck = (latestPair, ctx) => {
 const noPatternCheck = (setFlashingNodes) => {
   return  (latestPair, ctx) => {
     const res = noPattern(latestPair, ctx, setFlashingNodes);
-    if (res && res.ok === false)
-      return { ok: false, message: res.message || "No-Pattern condition failed!" };
+    if (res && res.ok === false) {
+      return {
+        ok: false,
+        message: res.message || "No-Pattern condition failed!",
+        patterns: res.patterns || null,
+      };
+    }
     return { ok: true };
   };
 };
