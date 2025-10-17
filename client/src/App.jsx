@@ -389,7 +389,7 @@ function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setFlashingNodes([]);
-    }, 12000);
+    }, 8000);
 
     // TODO: change to flash until fixed?
 
@@ -764,6 +764,9 @@ function App() {
       </button>
       <button onClick={handleUndo} className="undo-button">
         Undo
+      </button>
+      <button onClick={() => {}} className="randomize-button">
+        Randomize
       </button>
       {!selectedLevel ? (
         <div className="level-selector">
