@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { useState, useEffect } from 'react';
 import './taikoNode.css';
 
-const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted, isFlashing}) => {
+const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted, isFlashing, endpointStatus, endpointReason}) => {
   const [entering, setEntering] = useState(true);
 
   useEffect(() => {
@@ -25,10 +25,19 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
 
   const classNames = `${isFlashing ? 'flash' : ''} taiko-node ${entering ? 'taiko-node-enter' : ''}${isSelected ? ' selected' : ''}`;
 
+  // endpointStatus: 'valid' | 'invalid' | undefined
+  const borderStyle = endpointStatus === 'valid' ? '4px solid #2ecc71' : endpointStatus === 'invalid' ? '4px solid #e74c3c' : undefined;
+
+  const [showTooltip, setShowTooltip] = useState(false);
+
   return (
     <div
       id={id}
       onClick={onClick}
+      onMouseEnter={() => {
+        if (endpointStatus === 'invalid') setShowTooltip(true);
+      }}
+      onMouseLeave={() => setShowTooltip(false)}
       className={classNames}
       style={{
         backgroundColor: isSelected
@@ -41,6 +50,7 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
         opacity: isSelected ? 1 : isFaded ? 0.5 : 1,
         width: `${nodeSize}px`,
         height: `${nodeSize}px`,
+        border: borderStyle,
       }}
     >
       {position === "top" && (
@@ -56,6 +66,11 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
       )}
 
       {blackDotEffect && !isSelected && <div className="black-dot"></div>}
+      {showTooltip && endpointStatus === 'invalid' && endpointReason && (
+        <div className="endpoint-tooltip" role="tooltip">
+          {endpointReason}
+        </div>
+      )}
     </div>
   );
 };
@@ -71,5 +86,7 @@ TaikoNode.propTypes = {
   blackDotEffect: PropTypes.bool.isRequired,
   lightMode: PropTypes.bool.isRequired,
   isHighlighted: PropTypes.bool.isRequired,
+  endpointStatus: PropTypes.oneOf(["valid", "invalid"]),
+  endpointReason: PropTypes.string,
 };
 export default TaikoNode;

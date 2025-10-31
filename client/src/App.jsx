@@ -90,6 +90,7 @@ function App() {
   const previousProgressRef = useRef(progress);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [flashingNodes, setFlashingNodes] = useState([]);
+  const [endpointStatusMap, setEndpointStatusMap] = useState({}); // id -> { status: 'valid'|'invalid', reason?: string }
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
 
@@ -892,6 +893,66 @@ function App() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [isDraggingLine, currentLineEl]);
 
+  // Compute endpoint validity border
+  useEffect(() => {
+    const map = {};
+    if (selectedNodes.length === 1) {
+      const startNode = selectedNodes[0];
+      const isTopStart = startNode.startsWith("top");
+      const tCount = topRowCountRef.current;
+      const bCount = bottomRowCountRef.current;
+
+      const checkCandidate = (candidateId) => {
+        if (!candidateId || candidateId === startNode) return { status: 'invalid', reason: 'Same node' };
+
+        const isTopCand = candidateId.startsWith("top");
+        if ((isTopStart && isTopCand) || (!isTopStart && !isTopCand)) return { status: 'invalid', reason: 'Cannot connect nodes in the same row' };
+
+        const dup = connectionsRef.current.some(
+          (c) => c.nodes.includes(startNode) && c.nodes.includes(candidateId)
+        );
+        if (dup) return { status: 'invalid', reason: 'These vertices are already connected' };
+
+        const pending = edgeStateRef.current;
+        if (pending) {
+          if (pending.nodes.includes(startNode) || pending.nodes.includes(candidateId)) return { status: 'invalid', reason: 'Pending edge shares a vertex' };
+
+          const newConn = { nodes: [startNode, candidateId], color: pending.color };
+          const validation = runLevelChecks(levelRef.current, [pending, newConn], {
+            groupMapRef,
+            topOrientation,
+            botOrientation,
+            connections: connectionsRef.current,
+            connectionPairs: connectionPairsRef.current,
+            topRowCount: topRowCountRef.current,
+            bottomRowCount: bottomRowCountRef.current,
+            patternLog: patternLogRef.current,
+          }, () => {});
+          if (validation && validation.ok) return { status: 'valid' };
+
+          const reason = validation && validation.message ? validation.message : 'Rule check failed';
+          return { status: 'invalid', reason };
+        }
+
+        return { status: 'valid' };
+      };
+
+      if (isTopStart) {
+        for (let i = 0; i < bCount; i++) {
+          const id = `bottom-${i}`;
+          map[id] = checkCandidate(id);
+        }
+      } else {
+        for (let i = 0; i < tCount; i++) {
+          const id = `top-${i}`;
+          map[id] = checkCandidate(id);
+        }
+      }
+    }
+
+    setEndpointStatusMap(map);
+  }, [selectedNodes, connections, connectionPairs, edgeState, topRowCount, bottomRowCount]);
+
   useEffect(() => {
     const handleMouseUp = (e) => {
       if (!isDraggingLine) return;
@@ -1023,11 +1084,13 @@ function App() {
 
   const createTopRow = (count) =>
     Array.from({ length: count }, (_, i) => (
-      <TaikoNode
+        <TaikoNode
         key={`top-${i}`}
         id={`top-${i}`}
         onClick={() => handleNodeClick(`top-${i}`)}
         isSelected={selectedNodes.includes(`top-${i}`)}
+        endpointStatus={endpointStatusMap[`top-${i}`]?.status}
+        endpointReason={endpointStatusMap[`top-${i}`]?.reason}
         index={i}
         totalCount={topRowCount}
         isFaded={count > 1 && i === count - 1}
@@ -1041,11 +1104,13 @@ function App() {
 
   const createBottomRow = (count) =>
     Array.from({ length: count }, (_, i) => (
-      <TaikoNode
+        <TaikoNode
         key={`bottom-${i}`}
         id={`bottom-${i}`}
         onClick={() => handleNodeClick(`bottom-${i}`)}
         isSelected={selectedNodes.includes(`bottom-${i}`)}
+        endpointStatus={endpointStatusMap[`bottom-${i}`]?.status}
+        endpointReason={endpointStatusMap[`bottom-${i}`]?.reason}
         index={i}
         totalCount={bottomRowCount}
         isFaded={count > 1 && i === count - 1}
