@@ -1,3 +1,5 @@
+import { buildPairKey } from "./patternLog.js";
+
 /**
  * Draws connection lines and curved paths between nodes on an SVG canvas.
  * @param {Object} svgRef - Reference to the SVG element where connections will be drawn.
@@ -90,6 +92,8 @@ export const drawConnections = (
         },
       ] = pair;
 
+      const pairId = buildPairKey(pair);
+
       const sortNodes = (nodeA, nodeB) => {
         const numberA = parseInt(nodeA.split('-')[1], 10);
         const numberB = parseInt(nodeB.split('-')[1], 10);
@@ -118,7 +122,7 @@ export const drawConnections = (
        * @param {boolean} isTopCurve - Whether the curve arches upwards or downwards.
        * @returns {Object} SVG path element or null if nodes are missing.
        */
-      const createCurvedPath = (startNode, endNode, isTopCurve, orientation) => {
+      const createCurvedPath = (startNode, endNode, isTopCurve, orientation, edgeMeta) => {
         const startElement = document.getElementById(startNode);
         const endElement = document.getElementById(endNode);
         if (!startElement || !endElement) return null;
@@ -153,6 +157,14 @@ export const drawConnections = (
         path.setAttribute("fill", "none");
         path.setAttribute("stroke-width", "4");
         path.setAttribute("stroke-linecap", "round");
+        if (edgeMeta?.edgeId) {
+          path.setAttribute("data-edge-id", edgeMeta.edgeId);
+        }
+        if (edgeMeta?.pairId) {
+          path.setAttribute("data-pair-id", edgeMeta.pairId);
+        }
+        path.setAttribute("data-sequence", isTopCurve ? "top" : "bottom");
+        path.setAttribute("data-edge-marker", "path");
 
         const pathLength = path.getTotalLength();
         const midPoint = path.getPointAtLength(pathLength / 2);
@@ -179,6 +191,14 @@ export const drawConnections = (
             "transform",
             `rotate(${tangentAngle}, ${midX}, ${midY})`
           );
+          if (edgeMeta?.edgeId) {
+            arrow.setAttribute("data-edge-id", edgeMeta.edgeId);
+          }
+          if (edgeMeta?.pairId) {
+            arrow.setAttribute("data-pair-id", edgeMeta.pairId);
+          }
+          arrow.setAttribute("data-sequence", isTopCurve ? "top" : "bottom");
+          arrow.setAttribute("data-edge-marker", "arrow");
         }
   
         return { path, arrow };
@@ -186,11 +206,13 @@ export const drawConnections = (
       };
 
       // Create and append top and bottom curves for each connection pair
+      const topEdgeId = [sortedTopNode1, sortedTopNode2].join(',');
       const topCurve = createCurvedPath(
         sortedTopNode1,
         sortedTopNode2,
         true, // isTopCurve
-        topDirection
+        topDirection,
+        { edgeId: topEdgeId, pairId }
       );
       if (topCurve) {
         svgRef.current.appendChild(topCurve.path);
@@ -199,11 +221,13 @@ export const drawConnections = (
         }
       }
   
+      const bottomEdgeId = [sortedBottomNode1, sortedBottomNode2].join(',');
       const bottomCurve = createCurvedPath(
         sortedBottomNode1,
         sortedBottomNode2,
         false, // isBottomCurve
-        bottomDirection
+        bottomDirection,
+        { edgeId: bottomEdgeId, pairId }
       );
       if (bottomCurve) {
         svgRef.current.appendChild(bottomCurve.path);

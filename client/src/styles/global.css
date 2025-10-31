@@ -273,3 +273,23 @@ body {
 .bottom-row {
   margin-top: 100px;
 }
+
+@keyframes no-fold-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.no-fold-violation-flash {
+  stroke: #ff4d4f !important;
+  animation: no-fold-blink 0.35s ease-in-out 0s 10 alternate;
+  filter: drop-shadow(0 0 6px rgba(255, 77, 79, 0.7));
+}
+
+.no-fold-violation-flash[data-edge-marker="arrow"] {
+  fill: #ff4d4f !important;
+  stroke: none !important;
+}

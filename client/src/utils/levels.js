@@ -90,7 +90,12 @@ const noFoldCheck = (latestPair, ctx) => {
 
   const res = noFold(latestPair, { ...ctx, groupMapRef: groupMapCloneRef });
   if (res && res.ok === false)
-    return { ok: false, message: res.message || "No-Fold condition failed!" };
+    return {
+      ok: false,
+      message: res.message || "No-Fold condition failed!",
+      code: res.code ?? "NO_FOLD",
+      violations: res.violations,
+    };
   return { ok: true };
 };
 

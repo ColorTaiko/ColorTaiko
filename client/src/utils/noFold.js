@@ -58,6 +58,7 @@ function recordFold(foldSet, edgeId) {
 
 function checkSequence(edges, sequenceName) {
   const foldEdges = new Set();
+  const violationDetails = [];
   const colorMap = new Map(); // color -> { outgoing, incoming }
 
   for (const edge of ensureArray(edges)) {
@@ -68,14 +69,25 @@ function checkSequence(edges, sequenceName) {
     const color = edge.color ?? `${FALLBACK_COLOR_PREFIX}${edge.id ?? "unknown"}`;
     if (!colorMap.has(color)) {
       colorMap.set(color, {
-        outgoing: new Map(), // from -> { to, id }
-        incoming: new Map(), // to -> { from, id }
+        outgoing: new Map(), // from -> { to, edgeInfo }
+        incoming: new Map(), // to -> { from, edgeInfo }
       });
     }
 
     const { outgoing, incoming } = colorMap.get(color);
     const { from, to } = edge;
     const edgeId = edge.id ?? `${from},${to}`;
+
+    const edgeInfo = {
+      id: edgeId,
+      pairId: edge.pairId ?? null,
+      nodes: ensureArray(edge.nodes),
+      from,
+      to,
+      color,
+      orientation: edge.orientation,
+      sequence: sequenceName,
+    };
 
     if (outgoing.has(from)) {
       const existing = outgoing.get(from);
@@ -84,10 +96,17 @@ function checkSequence(edges, sequenceName) {
           `Fold detected in ${sequenceName}: ${from} has ${color} going to both ${existing.to} and ${to}`
         );
         recordFold(foldEdges, edgeId);
-        recordFold(foldEdges, existing.id);
+        recordFold(foldEdges, existing.edgeInfo.id);
+        violationDetails.push({
+          sequence: sequenceName,
+          type: "multiple-outgoing",
+          anchorNode: from,
+          color,
+          edges: [existing.edgeInfo, edgeInfo],
+        });
       }
     } else {
-      outgoing.set(from, { to, id: edgeId });
+      outgoing.set(from, { to, edgeInfo });
     }
 
     if (incoming.has(to)) {
@@ -97,10 +116,17 @@ function checkSequence(edges, sequenceName) {
           `Fold detected in ${sequenceName}: ${to} receives ${color} from both ${existing.from} and ${from}`
         );
         recordFold(foldEdges, edgeId);
-        recordFold(foldEdges, existing.id);
+        recordFold(foldEdges, existing.edgeInfo.id);
+        violationDetails.push({
+          sequence: sequenceName,
+          type: "multiple-incoming",
+          anchorNode: to,
+          color,
+          edges: [existing.edgeInfo, edgeInfo],
+        });
       }
     } else {
-      incoming.set(to, { from, id: edgeId });
+      incoming.set(to, { from, edgeInfo });
     }
 
     if (outgoing.has(to)) {
@@ -110,12 +136,19 @@ function checkSequence(edges, sequenceName) {
           `Cycle detected in ${sequenceName}: ${from} <-> ${to} with color ${color}`
         );
         recordFold(foldEdges, edgeId);
-        recordFold(foldEdges, reverse.id);
+        recordFold(foldEdges, reverse.edgeInfo.id);
+        violationDetails.push({
+          sequence: sequenceName,
+          type: "two-cycle",
+          anchorNode: from,
+          color,
+          edges: [reverse.edgeInfo, edgeInfo],
+        });
       }
     }
   }
 
-  return foldEdges;
+  return { foldEdges, details: violationDetails };
 }
 
 export function noFold(latestPair, context = {}) {
@@ -237,9 +270,11 @@ export function noFoldFromPatternLog(patternLog, foldsFound, options = {}) {
   const topEdges = normalise(patternLog.topSequence);
   const bottomEdges = normalise(patternLog.bottomSequence);
 
-  const topFolds = checkSequence(topEdges, "top");
-  const bottomFolds = checkSequence(bottomEdges, "bottom");
-  const allFolds = new Set([...topFolds, ...bottomFolds]);
+  const topResult = checkSequence(topEdges, "top");
+  const bottomResult = checkSequence(bottomEdges, "bottom");
+
+  const allFolds = new Set([...topResult.foldEdges, ...bottomResult.foldEdges]);
+  const violationDetails = [...topResult.details, ...bottomResult.details];
 
   if (foldsFound) {
     foldsFound.clear();
@@ -249,7 +284,12 @@ export function noFoldFromPatternLog(patternLog, foldsFound, options = {}) {
   }
 
   if (allFolds.size > 0) {
-    return { ok: false, message: "No-Fold condition failed!" };
+    return {
+      ok: false,
+      message: "No-Fold condition failed!",
+      code: "NO_FOLD",
+      violations: violationDetails,
+    };
   }
 
   return { ok: true };
