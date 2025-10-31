@@ -287,7 +287,7 @@ function App() {
   // Begin timeout events for randomize
   const startRandomize = () => {
     const timer = setInterval(() => {
-      const maxAttempts = 500;
+      const maxAttempts = 1000;
       const candidates = [];
 
       // Precompute node degrees to bias sampling towards higher-degree vertices.
@@ -327,7 +327,7 @@ function App() {
           return weights.length - 1;
         };
 
-        for (let attempt = 0; attempt < maxAttempts && candidates.length < 30; attempt++) {
+        for (let attempt = 0; attempt < maxAttempts && candidates.length < 50; attempt++) {
           const topIdx = sampleIndexByWeights(topWeights);
           const botIdx = sampleIndexByWeights(botWeights);
           const topId = `top-${topIdx}`;
@@ -821,6 +821,7 @@ function App() {
 
       if (newProgress === 100) {
         setPercent100Message(true);
+        clearInterval(randomizingTimer);
         if (soundBool) {
           perfectAudio.play();
         }
