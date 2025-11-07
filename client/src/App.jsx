@@ -372,6 +372,32 @@ function App() {
   }, [clearNoFoldEffects]);
 
   /**
+   * Adds ctrl + z shortcut (when holds, does not repeatedly perform undo)
+   */ 
+useEffect(() => {
+  const handleKeyDown = (event) => {
+    if (event.repeat) {
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      console.log("Undo");
+      handleUndo();
+    }
+    // Ctrl+Y
+    // else if (((event.ctrlKey || event.metaKey) && event.key === 'y') || 
+    //          ((event.ctrlKey || event.metaKey) && event.key === 'z' && event.shiftKey)) {
+    //   event.preventDefault();
+    //   console.log("Redo");
+    //   // handleRedo();
+    // }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [handleUndo]);
+
+  /**
    * Sets welcome message visibility based on the number of nodes in each row.
    */
   useEffect(() => {
@@ -794,6 +820,24 @@ function App() {
     setCurrentStep(0);
     connectionLogRef.current = [];
   };
+
+  /**
+   * ctrl + K shortcut for the Clear button
+   */
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.repeat) {
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        console.log("Clear");
+        handleClear();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleClear]); 
 
   const handleSoundClick = () => {
     setSoundBool((prev) => !prev);
