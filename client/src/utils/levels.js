@@ -59,9 +59,65 @@ const orientationCheck = (latestPair, ctx) => {
     ctx.botOrientation,
     { patternLog: ctx.patternLog }
   );
-  if (res === -1) return { ok: false, message: "Orientation condition failed!" };
+  if (res === -1) {
+    // Build violation details similar to noFold so UI can flash and show modal
+    try {
+      const [c1, c2] = Array.isArray(latestPair) ? latestPair : [];
+      if (!c1 || !c2) return { ok: false, message: "Orientation condition failed!", code: "ORIENTATION" };
+
+      const [top1, bottom1] = c1.nodes;
+      const [top2, bottom2] = c2.nodes;
+      const topNodes = [top1, top2].sort();
+      const bottomNodes = [bottom1, bottom2].sort();
+      const topId = topNodes.join(",");
+      const bottomId = bottomNodes.join(",");
+
+      const topDir = ctx.topOrientation?.current?.get(topId);
+      const botDir = ctx.botOrientation?.current?.get(bottomId);
+
+      // Color is optional; if grouping exists, try to pull it, else leave undefined
+      const topColor = ctx.groupMapRef?.current?.get(topId)?.color;
+      const bottomColor = ctx.groupMapRef?.current?.get(bottomId)?.color;
+
+      const violations = [
+        {
+          sequence: "top",
+          type: "orientation-conflict",
+          edges: [
+            {
+              id: topId,
+              nodes: topNodes,
+              color: topColor,
+              orientation: topDir || "right",
+            },
+          ],
+        },
+        {
+          sequence: "bottom",
+          type: "orientation-conflict",
+          edges: [
+            {
+              id: bottomId,
+              nodes: bottomNodes,
+              color: bottomColor,
+              orientation: botDir || "right",
+            },
+          ],
+        },
+      ];
+
+      return {
+        ok: false,
+        code: "ORIENTATION",
+        message: "Orientation condition failed!",
+        violations,
+      };
+    } catch (_) {
+      return { ok: false, code: "ORIENTATION", message: "Orientation condition failed!" };
+    }
+  }
   return { ok: true };
-};
+}; 
 
 const girthCheck = (minGirth) => (latestPair, ctx) => {
   const res = checkGirth(ctx.topOrientation, ctx.botOrientation, minGirth);

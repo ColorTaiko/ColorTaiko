@@ -94,6 +94,7 @@ export const checkOrientation = (
     
         if (shouldFlip) {
             if (topGroup === bottomGroup) {
+                // structured orientation failure (UI will enrich with edge details in adapter)
                 return -1;
             }
             const orientationUpdates = [];
