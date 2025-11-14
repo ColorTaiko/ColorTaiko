@@ -1,3 +1,8 @@
+// try bound of 21 by 21 on last level
+// remove music on different branch
+
+// if not greedy, backtracking?
+
 import { useState, useRef, useEffect, useCallback } from "react";
 
 import { generateColor } from "./utils/colorUtils";
@@ -93,6 +98,8 @@ function App() {
   const [endpointStatusMap, setEndpointStatusMap] = useState({}); // id -> { status: 'valid'|'invalid', reason?: string }
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
+  const maxTopRef = useRef(null);
+  const maxBottomRef = useRef(null);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
@@ -152,6 +159,10 @@ function App() {
     setBlackDotEffect,
     lightMode,
     setLightMode,
+    maxTopNodes,
+    setMaxTopNodes,
+    maxBottomNodes,
+    setMaxBottomNodes,
   } = useSettings();
 
   // References for SVG elements and connection groups.
@@ -288,7 +299,7 @@ function App() {
   // Begin timeout events for randomize
   const startRandomize = () => {
     const timer = setInterval(() => {
-      const maxAttempts = 1000;
+      const maxAttempts = 20000;
       const candidates = [];
 
       // Precompute node degrees to bias sampling towards higher-degree vertices.
@@ -319,16 +330,17 @@ function App() {
 
         const sampleIndexByWeights = (weights) => {
           const total = weights.reduce((s, w) => s + w, 0);
-          if (total <= 0) return Math.floor(Math.random() * weights.length);
+
           let r = Math.random() * total;
           for (let i = 0; i < weights.length; i++) {
             r -= weights[i];
             if (r <= 0) return i;
           }
-          return weights.length - 1;
+
+          return Math.floor(Math.random() * (weights.length - 0));
         };
 
-        for (let attempt = 0; attempt < maxAttempts && candidates.length < 50; attempt++) {
+        for (let attempt = 0; attempt < maxAttempts && candidates.length < 10000; attempt++) {
           const topIdx = sampleIndexByWeights(topWeights);
           const botIdx = sampleIndexByWeights(botWeights);
           const topId = `top-${topIdx}`;
@@ -367,24 +379,57 @@ function App() {
             ? [...prevPairs.slice(0, -1), [...lastPair, newConnection]]
             : [...prevPairs, [pending, newConnection]];
 
-          const score = calculateScore(simulatedConnections, topRowCountRef.current, bottomRowCountRef.current);
-          candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
+
+          let simulatedTopCount = topRowCountRef.current;
+          let simulatedBottomCount = bottomRowCountRef.current;
+          for (const conn of simulatedConnections) {
+            const [node1, node2] = conn.nodes;
+            const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+            simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+          }
+
+          const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+          // respect max bounds while collecting candidates
+          const maxTop = maxTopRef.current ?? maxTopNodes;
+          const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+          if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+            candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
+          }
         } else {
           const newColor = generateColor(currentColorRef.current, setCurrentColor, connectionPairsRef.current);
           const newConnection = { nodes: [topId, botId], color: newColor };
 
           const simulatedConnections = [...connectionsRef.current, newConnection];
           const simulatedPairs = [...connectionPairsRef.current, [newConnection]];
-          const score = calculateScore(simulatedConnections, topRowCountRef.current, bottomRowCountRef.current);
-          candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+          
+          let simulatedTopCount = topRowCountRef.current;
+          let simulatedBottomCount = bottomRowCountRef.current;
+          for (const conn of simulatedConnections) {
+            const [node1, node2] = conn.nodes;
+            const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+            simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+            simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+          }
+
+          const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+          const maxTop = maxTopRef.current ?? maxTopNodes;
+          const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+          if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+            candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+          }
         }
   }
   }
 
+  candidates.sort((a, b) => b.score - a.score);
+
   if (candidates.length > 0) {
-        // pick the best-scoring candidate
-        candidates.sort((a, b) => b.score - a.score);
         const best = candidates[0];
+
+        console.log(best);
 
         // commit the best candidate atomically
         saveToHistoryNow();
@@ -405,7 +450,10 @@ function App() {
   };
 
   const stopRandomize = () => {
-    if (randomizingTimer) clearInterval(randomizingTimer);
+    if (randomizingTimer) {
+      clearInterval(randomizingTimer);
+      setIsRandomizing(false);
+    }
     setRandomizingTimer(null);
   };
 
@@ -804,9 +852,20 @@ function App() {
       bottomRowCount,
       connections,
       setTopRowCount,
-      setBottomRowCount
+      setBottomRowCount,
+      maxTopNodes,
+      maxBottomNodes
     );
   }, [connections, topRowCount, bottomRowCount]);
+
+  // keep refs of maxes for interval closure
+  useEffect(() => {
+    maxTopRef.current = maxTopNodes;
+  }, [maxTopNodes]);
+
+  useEffect(() => {
+    maxBottomRef.current = maxBottomNodes;
+  }, [maxBottomNodes]);
 
   /**
    * Calculates progress as a percentage based on completed connections.
@@ -1444,6 +1503,10 @@ function App() {
           onToggleBlackDotEffect={toggleBlackDotEffect}
           lightMode={lightMode}
           onToggleLightMode={toggleLightMode}
+          maxTop={maxTopNodes}
+          onMaxTopChange={setMaxTopNodes}
+          maxBottom={maxBottomNodes}
+          onMaxBottomChange={setMaxBottomNodes}
         />
       )}
       <button 

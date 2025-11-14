@@ -10,10 +10,24 @@ const SettingsMenu = ({
   onToggleBlackDotEffect,
   lightMode,
   onToggleLightMode,
+  maxTop,
+  onMaxTopChange,
+  maxBottom,
+  onMaxBottomChange,
 }) => {
   const handleOffsetInput = (e) => {
     const newOffset = parseInt(e.target.value, 10);
     onOffsetChange(newOffset);
+  };
+
+  const handleMaxTopInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!Number.isNaN(v)) onMaxTopChange(v);
+  };
+
+  const handleMaxBottomInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!Number.isNaN(v)) onMaxBottomChange(v);
   };
 
   return (
@@ -30,10 +44,39 @@ const SettingsMenu = ({
           step="1"
         />
       </label>
-      <div className="settings-toggle-row">
-        <span>Sound</span>
-        <span style={{ fontWeight: 600 }}>{soundbool ? "ON" : "OFF"}</span>
-        <input type="checkbox" checked={soundbool} onChange={onSoundControl} />
+      <label style={{ marginTop: '10px', display: 'block' }}>
+        Max Top Nodes (m):
+        <input
+          type="number"
+          value={maxTop}
+          onChange={handleMaxTopInput}
+          min="1"
+          max="50"
+          style={{ marginLeft: '10px', width: '70px' }}
+        />
+      </label>
+      <label style={{ marginTop: '10px', display: 'block' }}>
+        Max Bottom Nodes (n):
+        <input
+          type="number"
+          value={maxBottom}
+          onChange={handleMaxBottomInput}
+          min="1"
+          max="50"
+          style={{ marginLeft: '10px', width: '70px' }}
+        />
+      </label>
+      <div style={{ marginTop: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          Sound Control:
+          <span>{soundbool ? "ON" : "OFF"}</span>
+          <input
+            type="checkbox"
+            checked={soundbool}
+            onChange={onSoundControl}
+            style={{ transform: "scale(1.5)" }}
+          />
+        </label>
       </div>
       <div className="settings-toggle-row">
         <span>Black Dot</span>
@@ -66,6 +109,10 @@ SettingsMenu.propTypes = {
   onToggleBlackDotEffect: PropTypes.func.isRequired,
   lightMode: PropTypes.bool.isRequired,
   onToggleLightMode: PropTypes.func.isRequired,
+  maxTop: PropTypes.number.isRequired,
+  onMaxTopChange: PropTypes.func.isRequired,
+  maxBottom: PropTypes.number.isRequired,
+  onMaxBottomChange: PropTypes.func.isRequired,
 };
 
 export default SettingsMenu;

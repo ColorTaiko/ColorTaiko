@@ -8,7 +8,15 @@
  * @param {Function} setBottomRowCount - Setter function to increment the bottom row count.
  */
 
-export const checkAndAddNewNodes = (topRowCount, bottomRowCount, connections, setTopRowCount, setBottomRowCount) => {
+export const checkAndAddNewNodes = (
+  topRowCount,
+  bottomRowCount,
+  connections,
+  setTopRowCount,
+  setBottomRowCount,
+  maxTop = Infinity,
+  maxBottom = Infinity
+) => {
     // Check if all nodes in the top row are connected
     const allTopNodesConnected = Array.from({ length: topRowCount }, (_, i) =>
       connections.some((conn) => conn.nodes.includes(`top-${i}`))
@@ -20,6 +28,11 @@ export const checkAndAddNewNodes = (topRowCount, bottomRowCount, connections, se
     ).every(Boolean);
     // Add a new node to the row if all nodes in that row are connected
     if (allTopNodesConnected || allBottomNodesConnected) {
-      allTopNodesConnected ? setTopRowCount((prev) => prev + 1) : setBottomRowCount((prev) => prev + 1);
+      if (allTopNodesConnected && topRowCount < maxTop) {
+        setTopRowCount((prev) => prev + 1);
+      } else if (allBottomNodesConnected && bottomRowCount < maxBottom) {
+        setBottomRowCount((prev) => prev + 1);
+      }
+      // If at max, do nothing; stop adding nodes beyond the configured bounds.
     }
   };
