@@ -19,7 +19,6 @@ import { noFoldPreflightWithPatternLog } from "./utils/noFold";
 import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
 import { levelsWithNoPattern } from "./utils/levels";
 // import { checkOrientation } from "./utils/checkOrientation";
-// import { generateRandomGraph } from "./utils/randomGraph";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -1555,34 +1554,6 @@ function App() {
       <button onClick={handleRandomize} className="randomize-button">
         {isRandomizing ? 'Stop Generating' : 'Random Taiko'}
       </button>
-      {!selectedLevel ? (
-        <div className="level-selector">
-          <select
-            id="level-dropdown"
-            value={selectedLevel ?? ""}
-            onChange={handleLevelChange}
-            disabled={isDropdownDisabled}
-            className="level-dropdown"
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Choose a level
-            </option>
-            <option value="Level 1">Level 1</option>
-            <option value="Level 2">Level 2</option>
-            <option value="Level 3">Level 3</option>
-            <option value="Level 4NP">Level 4NP</option>
-            <option value="Level 4.6">Level 4.6</option>
-          </select>
-        </div>
-      ) : (
-        <div
-          className="level-selected"
-          style={{ color: lightMode ? "black" : "white" }}
-        >
-          Selected Level: {selectedLevel}
-        </div>
-      )}
       <ErrorModal
         className="error-container"
         message={errorMessage}

@@ -46,8 +46,8 @@ export const levelDescriptions = {
 // Levels that include the No-Pattern constraint
 export const levelsWithNoPattern = new Set([
   "Level 4.NF+NP",
-  "Level 5.NP+G4",
-  "Level 5.NP+G6",
+  "Level 5.NF+NP+G4",
+  "Level 5.NF+NP+G6",
 ]);
 
 // Adapters to normalize existing check functions to a unified { ok, message } interface
@@ -156,23 +156,16 @@ const noFoldCheck = (latestPair, ctx) => {
   return { ok: true };
 };
 
-const noPatternCheck = (setFlashingNodes, loud) => {
-  return (latestPair, ctx) => {
-    const res = noPattern(latestPair, ctx, setFlashingNodes, loud);
-    if (res && res.ok === false) {
-      return {
-        ok: false,
-        message: res.message || "No-Pattern condition failed!",
-        patterns: res.patterns || null,
-      };
-    }
-    return { ok: true };
-  };
+const noPatternCheck = (latestPair, ctx) => {
+  const res = noPattern(latestPair, ctx);
+  if (res && res.ok === false)
+    return { ok: false, message: res.message || "No-Pattern condition failed!" };
+  return { ok: true };
 };
 
 // Level -> cumulative checks
 // Per user: Levels are progressive through Level 3, then branch: 4NP and 4.6 are parallel.
-export function getChecksForLevel(level, setFlashingNodes, loud) {
+export function getChecksForLevel(level) {
   switch (level) {
     case "Level 1":
       return [];
@@ -197,8 +190,8 @@ export function getChecksForLevel(level, setFlashingNodes, loud) {
 }
 
 // Run all checks for a given level; stop at first failure.
-export function runLevelChecks(level, latestPair, context, setFlashingNodes, loud=true) {
-  const checks = getChecksForLevel(level, setFlashingNodes, loud);
+export function runLevelChecks(level, latestPair, context) {
+  const checks = getChecksForLevel(level);
   for (const check of checks) {
     const result = check(latestPair, context) || { ok: true };
     if (!result.ok) return result;
