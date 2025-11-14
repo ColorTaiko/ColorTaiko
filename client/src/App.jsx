@@ -156,9 +156,11 @@ function App() {
   const [Percent100Message, setPercent100Message] = useState(false);
   const [noFoldModalData, setNoFoldModalData] = useState(null);
   const [noFoldViolationState, setNoFoldViolationState] = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false); //new state for clear confirm
   const noFoldHighlightedElementsRef = useRef([]);
   const noFoldModalTimerRef = useRef(null);
   const noFoldViolationStateRef = useRef(null);
+   const undoIntervalRef = useRef(null); //new state for undo interval
 
   useEffect(() => {
     noFoldViolationStateRef.current = noFoldViolationState;
@@ -373,29 +375,58 @@ function App() {
 
   /**
    * Adds ctrl + z shortcut (when holds, does not repeatedly perform undo)
-   */ 
-useEffect(() => {
-  const handleKeyDown = (event) => {
-    if (event.repeat) {
-      return;
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
-      event.preventDefault();
-      console.log("Undo");
-      handleUndo();
-    }
-    // Ctrl+Y
-    // else if (((event.ctrlKey || event.metaKey) && event.key === 'y') || 
-    //          ((event.ctrlKey || event.metaKey) && event.key === 'z' && event.shiftKey)) {
-    //   event.preventDefault();
-    //   console.log("Redo");
-    //   // handleRedo();
-    // }
-  };
+   */
+  const handleUndoRef = useRef(handleUndo);
+  useEffect(() => {
+    handleUndoRef.current = handleUndo;
+  }, [handleUndo]);
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [handleUndo]);
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // if (event.repeat) {
+      //   return;
+      // }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        console.log("Undo");
+        // handleUndo();
+        if (!event.repeat) {
+          handleUndoRef.current(); 
+          
+          if (undoIntervalRef.current) {
+            clearInterval(undoIntervalRef.current);
+          }
+          
+          undoIntervalRef.current = setInterval(() => {
+            handleUndoRef.current(); 
+          }, 2000);
+        }
+      }
+    };
+
+    // window.addEventListener('keydown', handleKeyDown);
+    // return () => window.removeEventListener('keydown', handleKeyDown);
+    const handleKeyUp = (event) => {
+      if (event.key === 'z' || event.key === 'Control' || event.key === 'Meta') {
+        if (undoIntervalRef.current) {
+          clearInterval(undoIntervalRef.current);
+          undoIntervalRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      if (undoIntervalRef.current) {
+        clearInterval(undoIntervalRef.current);
+        // undoIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   /**
    * Sets welcome message visibility based on the number of nodes in each row.
@@ -832,12 +863,34 @@ useEffect(() => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
         event.preventDefault();
         console.log("Clear");
-        handleClear();
+        // handleClear();
+        setShowClearConfirm(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleClear]); 
+
+   /**
+   * Handle keyboard shortcuts for clear confirmation modal
+   */
+  useEffect(() => {
+    if (!showClearConfirm) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleClear();
+        setShowClearConfirm(false);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setShowClearConfirm(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showClearConfirm]);
 
   const handleSoundClick = () => {
     setSoundBool((prev) => !prev);
@@ -1034,16 +1087,49 @@ useEffect(() => {
           onToggleLightMode={toggleLightMode}
         />
       )}
-      <button onClick={handleClear} className="clear-button">
+      <button 
+        onClick={handleClear} 
+        className="clear-button"
+        title="Clear (Press Ctrl+K)"
+      >
         Clear
       </button>
-      <button onClick={handleUndo} className="undo-button">
+      <button 
+        onClick={handleUndo} 
+        className="undo-button"
+        title="Undo (Press Ctrl+Z)"
+      >
         Undo
       </button>
       <NoFoldViolationModal
         data={noFoldModalData}
         onClose={handleNoFoldModalClose}
       />
+      {showClearConfirm && (
+        <div className="modal-overlay" onClick={() => setShowClearConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ color: 'red' }}>Warning!</h2>
+            <p style={{ color: 'black' }}>Do you want to clear all?</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
+              <button 
+                onClick={() => {
+                  handleClear();
+                  setShowClearConfirm(false);
+                }}
+                style={{ padding: '10px 20px', cursor: 'pointer' }}
+              >
+                Yes (Press Enter)
+              </button>
+              <button 
+                onClick={() => setShowClearConfirm(false)}
+                style={{ padding: '10px 20px', cursor: 'pointer' }}
+              >
+                No (Press Esc)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ErrorModal
         className="error-container"
         message={errorMessage}
