@@ -46,8 +46,8 @@ export const levelDescriptions = {
 // Levels that include the No-Pattern constraint
 export const levelsWithNoPattern = new Set([
   "Level 4.NF+NP",
-  "Level 5.NF+NP+G4",
-  "Level 5.NF+NP+G6",
+  "Level 5.NP+G4",
+  "Level 5.NP+G6",
 ]);
 
 // Adapters to normalize existing check functions to a unified { ok, message } interface

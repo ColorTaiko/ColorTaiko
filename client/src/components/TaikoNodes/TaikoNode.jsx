@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { useState, useEffect } from 'react';
 import './taikoNode.css';
 
-const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted, isFlashing, endpointStatus, endpointReason}) => {
+const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted, isFlashing, endpointStatus, endpointReason, showLimitX }) => {
   const [entering, setEntering] = useState(true);
 
   useEffect(() => {
@@ -66,6 +66,11 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
       )}
 
       {blackDotEffect && !isSelected && <div className="black-dot"></div>}
+      {showLimitX && (
+        <div style={{ position: 'absolute', right: -4, top: -4, width: 20, height: 20, borderRadius: 10, background: '#e74c3c', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }} aria-hidden>
+          ×
+        </div>
+      )}
       {showTooltip && endpointStatus === 'invalid' && endpointReason && (
         <div className="endpoint-tooltip" role="tooltip">
           {endpointReason}
@@ -88,5 +93,6 @@ TaikoNode.propTypes = {
   isHighlighted: PropTypes.bool.isRequired,
   endpointStatus: PropTypes.oneOf(["valid", "invalid"]),
   endpointReason: PropTypes.string,
+  showLimitX: PropTypes.bool,
 };
 export default TaikoNode;

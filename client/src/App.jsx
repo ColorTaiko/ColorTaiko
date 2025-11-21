@@ -1,3 +1,6 @@
+// TODO: make popup saying that it is stuck, continue + stop
+// TODO: backtrack and choose 
+
 // try bound of 21 by 21 on last level
 // remove music on different branch
 
@@ -167,7 +170,16 @@ function App() {
   // References for SVG elements and connection groups.
   const [showSettings, setShowSettings] = useState(false);
   const iconRef = useRef(null);
+  const [randomMethod, setRandomMethod] = useState("greedy");
   const [welcomeMessage, setWelcomeMessage] = useState(false);
+  // keep a ref to the selected randomization method for interval closures
+  const randomMethodRef = useRef(randomMethod);
+  useEffect(() => {
+    randomMethodRef.current = randomMethod;
+  }, [randomMethod]);
+
+  // stack used by greedy-backtrack to store remaining alternative candidates per depth
+  const greedyStackRef = useRef([]);
   const [Percent100Message, setPercent100Message] = useState(false);
   const [noFoldModalData, setNoFoldModalData] = useState(null); // {code,message,violations}
   const [noFoldViolationState, setNoFoldViolationState] = useState(null); // {highlights,shouldUndoAfterFlash,code}
@@ -297,153 +309,192 @@ function App() {
 
   // Begin timeout events for randomize
   const startRandomize = () => {
-    const timer = setInterval(() => {
-      const maxAttempts = 20000;
+    // reset any previous greedy stack
+    greedyStackRef.current = [];
+    const buildCandidates = () => {
       const candidates = [];
-
-      // Precompute node degrees to bias sampling towards higher-degree vertices.
       const tCount = topRowCountRef.current;
       const bCount = bottomRowCountRef.current;
-      if (tCount <= 0 || bCount <= 0) {
-        // nothing to do
-      } else {
-        const topDegrees = Array.from({ length: tCount }, (_, i) => 0);
-        const botDegrees = Array.from({ length: bCount }, (_, i) => 0);
-        for (const c of connectionsRef.current) {
-          if (!Array.isArray(c.nodes)) continue;
-          for (const nid of c.nodes) {
-            if (typeof nid !== 'string') continue;
-            if (nid.startsWith('top-')) {
-              const idx = parseInt(nid.split('-')[1], 10);
-              if (!Number.isNaN(idx) && idx >= 0 && idx < tCount) topDegrees[idx]++;
-            } else if (nid.startsWith('bottom-')) {
-              const idx = parseInt(nid.split('-')[1], 10);
-              if (!Number.isNaN(idx) && idx >= 0 && idx < bCount) botDegrees[idx]++;
-            }
-          }
-        }
+      if (tCount <= 0 || bCount <= 0) return candidates;
 
-        // Build sampling weights (degree + 1) so higher-degree nodes are more likely.
-        const topWeights = topDegrees.map((d) => d + 1);
-        const botWeights = botDegrees.map((d) => d + 1);
-
-        const sampleIndexByWeights = (weights) => {
-          const total = weights.reduce((s, w) => s + w, 0);
-
-          let r = Math.random() * total;
-          for (let i = 0; i < weights.length; i++) {
-            r -= weights[i];
-            if (r <= 0) return i;
-          }
-
-          return Math.floor(Math.random() * (weights.length - 0));
-        };
-
-        for (let attempt = 0; attempt < maxAttempts && candidates.length < 10000; attempt++) {
-          const topIdx = sampleIndexByWeights(topWeights);
-          const botIdx = sampleIndexByWeights(botWeights);
+      for (let topIdx = 0; topIdx < tCount; topIdx++) {
+        for (let botIdx = 0; botIdx < bCount; botIdx++) {
           const topId = `top-${topIdx}`;
           const botId = `bottom-${botIdx}`;
 
-        const alreadyConnected = connectionsRef.current.some(
-          (c) => c.nodes.includes(topId) && c.nodes.includes(botId)
-        );
-        if (alreadyConnected) continue;
+          const alreadyConnected = connectionsRef.current.some(
+            (c) => c.nodes.includes(topId) && c.nodes.includes(botId)
+          );
+          if (alreadyConnected) continue;
 
-        const pending = edgeStateRef.current;
+          const pending = edgeStateRef.current;
 
-        if (pending) {
-          if (pending.nodes.includes(topId) || pending.nodes.includes(botId)) continue;
+          if (pending) {
+            if (pending.nodes.includes(topId) || pending.nodes.includes(botId)) continue;
 
-          const newConnection = { nodes: [topId, botId], color: pending.color };
-          const candidatePair = [pending, newConnection];
-          const validation = runLevelChecks(levelRef.current, candidatePair, {
-            groupMapRef,
-            topOrientation,
-            botOrientation,
-            connections: connectionsRef.current,
-            connectionPairs: connectionPairsRef.current,
-            topRowCount: topRowCountRef.current,
-            bottomRowCount: bottomRowCountRef.current,
-            patternLog: patternLogRef.current,
-          }, setFlashingNodes);
+            const newConnection = { nodes: [topId, botId], color: pending.color };
+            const candidatePair = [pending, newConnection];
 
-          if (!validation.ok) continue;
+            const topCloneForCheck = { current: new Map(topOrientation.current || []) };
+            const botCloneForCheck = { current: new Map(botOrientation.current || []) };
+            const groupMapCloneForCheck = { current: new Map(groupMapRef.current || []) };
+            const validation = runLevelChecks(levelRef.current, candidatePair, {
+              groupMapRef: groupMapCloneForCheck,
+              topOrientation: topCloneForCheck,
+              botOrientation: botCloneForCheck,
+              connections: connectionsRef.current,
+              connectionPairs: connectionPairsRef.current,
+              topRowCount: topRowCountRef.current,
+              bottomRowCount: bottomRowCountRef.current,
+              patternLog: patternLogRef.current,
+            }, setFlashingNodes);
 
-          // simulate resulting state for scoring
-          const simulatedConnections = [...connectionsRef.current, newConnection];
-          const prevPairs = connectionPairsRef.current;
-          const lastPair = prevPairs[prevPairs.length - 1];
-          const simulatedPairs = lastPair && lastPair.length === 1
-            ? [...prevPairs.slice(0, -1), [...lastPair, newConnection]]
-            : [...prevPairs, [pending, newConnection]];
+            if (!validation.ok) continue;
 
+            const simulatedConnections = [...connectionsRef.current, newConnection];
+            const prevPairs = connectionPairsRef.current;
+            const lastPair = prevPairs[prevPairs.length - 1];
+            const simulatedPairs = lastPair && lastPair.length === 1
+              ? [...prevPairs.slice(0, -1), [...lastPair, newConnection]]
+              : [...prevPairs, [pending, newConnection]];
 
-          let simulatedTopCount = topRowCountRef.current;
-          let simulatedBottomCount = bottomRowCountRef.current;
-          for (const conn of simulatedConnections) {
-            const [node1, node2] = conn.nodes;
-            const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
-            const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
-            simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
-            simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
-          }
+            let simulatedTopCount = topRowCountRef.current;
+            let simulatedBottomCount = bottomRowCountRef.current;
+            for (const conn of simulatedConnections) {
+              const [node1, node2] = conn.nodes;
+              const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+              simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+            }
 
-          const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
-          // respect max bounds while collecting candidates
-          const maxTop = maxTopRef.current ?? maxTopNodes;
-          const maxBottom = maxBottomRef.current ?? maxBottomNodes;
-          if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
-            candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
-          }
-        } else {
-          const newColor = generateColor(currentColorRef.current, setCurrentColor, connectionPairsRef.current);
-          const newConnection = { nodes: [topId, botId], color: newColor };
+            const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+            const maxTop = maxTopRef.current ?? maxTopNodes;
+            const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+            if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+              candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
+            }
+          } else {
+            const newColor = generateColor(currentColorRef.current, setCurrentColor, connectionPairsRef.current);
+            const newConnection = { nodes: [topId, botId], color: newColor };
 
-          const simulatedConnections = [...connectionsRef.current, newConnection];
-          const simulatedPairs = [...connectionPairsRef.current, [newConnection]];
-          
-          let simulatedTopCount = topRowCountRef.current;
-          let simulatedBottomCount = bottomRowCountRef.current;
-          for (const conn of simulatedConnections) {
-            const [node1, node2] = conn.nodes;
-            const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
-            const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
-            simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
-            simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
-          }
+            const simulatedConnections = [...connectionsRef.current, newConnection];
+            const simulatedPairs = [...connectionPairsRef.current, [newConnection]];
 
-          const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
-          const maxTop = maxTopRef.current ?? maxTopNodes;
-          const maxBottom = maxBottomRef.current ?? maxBottomNodes;
-          if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
-            candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+            let simulatedTopCount = topRowCountRef.current;
+            let simulatedBottomCount = bottomRowCountRef.current;
+            for (const conn of simulatedConnections) {
+              const [node1, node2] = conn.nodes;
+              const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+              simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+            }
+
+            const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+            const maxTop = maxTopRef.current ?? maxTopNodes;
+            const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+            if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+              candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+            }
           }
         }
-  }
-  }
-
-  candidates.sort((a, b) => b.score - a.score);
-
-  if (candidates.length > 0) {
-        const best = candidates[0];
-
-        console.log(best);
-
-        // commit the best candidate atomically
-        saveToHistoryNow();
-        setConnections(best.simulatedConnections);
-        setConnectionPairs(best.simulatedPairs);
-        if (best.type === 'single') {
-          setEdgeState(best.newConnection);
-          connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
-        } else {
-          setEdgeState(null);
-          connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
-        }
-        printFullConnectionLog();
       }
-    }, 2000);
+
+      return candidates;
+    };
+
+    const timer = setInterval(() => {
+      const method = randomMethodRef.current;
+
+      if (method === 'greedy-backtrack') {
+        let candidates = buildCandidates();
+        candidates.sort((a, b) => b.score - a.score);
+
+        if (candidates.length > 0) {
+          const best = candidates[0];
+          // push remaining alternatives for this depth onto stack
+          const remaining = candidates.slice(1);
+          greedyStackRef.current.push(remaining);
+
+          // commit best
+          saveToHistoryNow();
+          setConnections(best.simulatedConnections);
+          setConnectionPairs(best.simulatedPairs);
+          if (best.type === 'single') {
+            setEdgeState(best.newConnection);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          } else {
+            setEdgeState(null);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          }
+          printFullConnectionLog();
+        } else {
+          // backtrack until we find an alternative or exhaust the stack
+          let success = false;
+          while (greedyStackRef.current.length > 0 && !success) {
+            const remaining = greedyStackRef.current.pop();
+            // revert last committed move
+            try {
+              handleUndo();
+            } catch (e) {
+              console.warn('Backtrack undo failed', e);
+            }
+
+            if (!remaining || remaining.length === 0) continue;
+
+            // pick a random alternative from remaining
+            const idx = Math.floor(Math.random() * remaining.length);
+            const alt = remaining.splice(idx, 1)[0];
+            // if there are still alternatives left at this depth, push them back
+            if (remaining.length > 0) greedyStackRef.current.push(remaining);
+
+            // commit the alternative
+            saveToHistoryNow();
+            setConnections(alt.simulatedConnections);
+            setConnectionPairs(alt.simulatedPairs);
+            if (alt.type === 'single') {
+              setEdgeState(alt.newConnection);
+              connectionLogRef.current.push({ type: 'connect', conn: `${alt.newConnection.nodes[0]} -> ${alt.newConnection.nodes[1]}` });
+            } else {
+              setEdgeState(null);
+              connectionLogRef.current.push({ type: 'connect', conn: `${alt.newConnection.nodes[0]} -> ${alt.newConnection.nodes[1]}` });
+            }
+            printFullConnectionLog();
+            // push a placeholder for the new depth (we'll collect its alternatives when we reach it)
+            greedyStackRef.current.push([]);
+            success = true;
+          }
+
+          if (!success) {
+            // nothing left to try
+            stopRandomize();
+          }
+        }
+      } else {
+        // default deterministic exhaustive behavior
+        const candidates = buildCandidates();
+        candidates.sort((a, b) => b.score - a.score);
+
+        if (candidates.length > 0) {
+          const best = candidates[0];
+          console.log(best);
+
+          // commit the best candidate atomically
+          saveToHistoryNow();
+          setConnections(best.simulatedConnections);
+          setConnectionPairs(best.simulatedPairs);
+          if (best.type === 'single') {
+            setEdgeState(best.newConnection);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          } else {
+            setEdgeState(null);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          }
+          printFullConnectionLog();
+        }
+      }
+    }, 400);
 
     setRandomizingTimer(timer);
   };
@@ -454,6 +505,8 @@ function App() {
       setIsRandomizing(false);
     }
     setRandomizingTimer(null);
+    // clear greedy backtrack stack when stopping
+    greedyStackRef.current = [];
   };
 
   const handleRandomize = () => {
@@ -976,10 +1029,14 @@ function App() {
           if (pending.nodes.includes(startNode) || pending.nodes.includes(candidateId)) return { status: 'invalid', reason: 'Pending edge shares a vertex' };
 
           const newConn = { nodes: [startNode, candidateId], color: pending.color };
+
+          const topCloneForHover = { current: new Map(topOrientation.current || []) };
+          const botCloneForHover = { current: new Map(botOrientation.current || []) };
+          const groupMapCloneForHover = { current: new Map(groupMapRef.current || []) };
           const validation = runLevelChecks(levelRef.current, [pending, newConn], {
-            groupMapRef,
-            topOrientation,
-            botOrientation,
+            groupMapRef: groupMapCloneForHover,
+            topOrientation: topCloneForHover,
+            botOrientation: botCloneForHover,
             connections: connectionsRef.current,
             connectionPairs: connectionPairsRef.current,
             topRowCount: topRowCountRef.current,
@@ -1152,6 +1209,7 @@ function App() {
         index={i}
         totalCount={topRowCount}
         isFaded={count > 1 && i === count - 1}
+        showLimitX={maxTopNodes && count === maxTopNodes && i === count - 1}
         position="top"
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
@@ -1172,6 +1230,7 @@ function App() {
         index={i}
         totalCount={bottomRowCount}
         isFaded={count > 1 && i === count - 1}
+        showLimitX={maxBottomNodes && count === maxBottomNodes && i === count - 1}
         position="bottom"
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
@@ -1506,6 +1565,8 @@ function App() {
           onMaxTopChange={setMaxTopNodes}
           maxBottom={maxBottomNodes}
           onMaxBottomChange={setMaxBottomNodes}
+          randomMethod={randomMethod}
+          onRandomMethodChange={setRandomMethod}
         />
       )}
       <button 

@@ -14,7 +14,12 @@ const SettingsMenu = ({
   onMaxTopChange,
   maxBottom,
   onMaxBottomChange,
+  randomMethod,
+  onRandomMethodChange,
 }) => {
+  const handleRandomMethodChange = (e) => {
+    if (onRandomMethodChange) onRandomMethodChange(e.target.value);
+  };
   const handleOffsetInput = (e) => {
     const newOffset = parseInt(e.target.value, 10);
     onOffsetChange(newOffset);
@@ -78,23 +83,38 @@ const SettingsMenu = ({
           />
         </label>
       </div>
-      <div className="settings-toggle-row">
-        <span>Black Dot</span>
-        <span style={{ fontWeight: 600 }}>{blackDotEffect ? "ON" : "OFF"}</span>
-        <input
-          type="checkbox"
-          checked={blackDotEffect}
-          onChange={onToggleBlackDotEffect}
-        />
-      </div>
-      <div className="settings-toggle-row">
-        <span>Light Mode</span>
-        <span style={{ fontWeight: 600 }}>{lightMode ? "ON" : "OFF"}</span>
-        <input
-          type="checkbox"
-          checked={lightMode}
-          onChange={onToggleLightMode}
-        />
+      <div style={{ marginTop: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          Black Dot Effect:
+          <span>{blackDotEffect ? "ON" : "OFF"}</span>
+          <input
+            type="checkbox"
+            checked={blackDotEffect}
+            onChange={onToggleBlackDotEffect}
+            style={{ transform: "scale(1.5)" }}
+          />
+        </label>
+        </div>
+        <div style={{ marginTop: "10px" }}>
+          <label style={{ display: 'block', marginBottom: '8px' }}>
+            Randomization Method:
+          </label>
+          <select value={randomMethod} onChange={handleRandomMethodChange} style={{ width: '100%', padding: '6px' }}>
+            <option value="greedy">Greedy</option>
+            <option value="greedy-backtrack">Greedy Backtrack</option>
+          </select>
+        </div>
+        <div style={{ marginTop: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          Light Mode:
+          <span>{lightMode ? "ON" : "OFF"}</span>
+          <input
+            type="checkbox"
+            checked={lightMode}
+            onChange={onToggleLightMode}
+            style={{ transform: "scale(1.5)" }}
+          />
+        </label>
       </div>
     </div>
   );
@@ -113,6 +133,8 @@ SettingsMenu.propTypes = {
   onMaxTopChange: PropTypes.func.isRequired,
   maxBottom: PropTypes.number.isRequired,
   onMaxBottomChange: PropTypes.func.isRequired,
+  randomMethod: PropTypes.string,
+  onRandomMethodChange: PropTypes.func,
 };
 
 export default SettingsMenu;
