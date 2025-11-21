@@ -1104,7 +1104,7 @@ function App() {
         />
       )}
       <button 
-        onClick={handleClear} 
+        onClick={() => setShowClearConfirm(true)}
         className="clear-button"
         title="Clear (Press Ctrl+K)"
       >
