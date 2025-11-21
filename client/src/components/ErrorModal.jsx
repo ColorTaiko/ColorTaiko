@@ -26,7 +26,7 @@ const ErrorModal = ({ message, onClose, titleFont }) => {
         width: '400px',
         textAlign: 'center',
       }}>
-        <h2 style={{ color: 'red', marginTop: 0, fontSize: '24px' }}>Hint:</h2>
+        <h2 style={{ color: 'red', marginTop: 0, fontSize: '24px' }}>Obstacles:</h2>
         <p style={{ fontSize: '18px', marginBottom: '30px' }}>{message}</p>
         <button onClick={onClose} style={{
           backgroundColor: '#007bff',

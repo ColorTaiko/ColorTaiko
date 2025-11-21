@@ -178,8 +178,16 @@ const NoFoldViolationModal = ({ data, onClose }) => {
   return (
     <div style={modalStyles.overlay}>
       <div style={modalStyles.dialog} role="alertdialog" aria-modal="true">
-        <h2 style={modalStyles.header}>Obstacles: No fold condition failure detected!</h2>
-        <p>{"You created a fold on: "}</p>
+        <h2 style={modalStyles.header}>
+          {data?.code === 'ORIENTATION'
+            ? 'Obstacles: Orientation condition failure!'
+            : 'Obstacles: No fold condition failure detected!'}
+        </h2>
+        <p>
+          {data?.code === 'ORIENTATION'
+            ? 'These edges conflict in orientation:'
+            : 'You created a fold on:'}
+        </p>
         {uniqueEdges.length > 0 && (
           <ul style={modalStyles.list}>
             {uniqueEdges.map((edge) => {
@@ -191,7 +199,9 @@ const NoFoldViolationModal = ({ data, onClose }) => {
                 <li key={edge.key} style={modalStyles.listItem}>
                   {/* <span style={modalStyles.badge}>{sequenceLabel}</span> */}
                   <span style={{ ...modalStyles.colorSwatch, backgroundColor: edge.color }} />
-                  <strong>Edge between: {nodesLabel}</strong>
+                  <strong>
+                    {data?.code === 'ORIENTATION' ? 'Edge: ' : 'Edge between: '} {nodesLabel}
+                  </strong>
                   <div style={modalStyles.secondaryText}>
                     {/* {"The edge between these two vertices is not invalid."} */}
                     {/* {edge.displayPairId ? ` | Pair: ${edge.displayPairId}` : ""} */}
@@ -211,6 +221,7 @@ const NoFoldViolationModal = ({ data, onClose }) => {
 
 NoFoldViolationModal.propTypes = {
   data: PropTypes.shape({
+    code: PropTypes.string,
     message: PropTypes.string,
     violations: PropTypes.arrayOf(
       PropTypes.shape({
