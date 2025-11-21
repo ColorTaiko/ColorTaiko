@@ -97,18 +97,21 @@ const LevelTreeModal = ({
               </div>
             ))}
 
-            {hoveredNode && descriptionsMap[hoveredNode.name] && (
+            {hoveredNode && descriptionsMap[hoveredNode.name] && (() => {
+              // Clamp tooltip vertical shift to avoid going off the top when node is near the top edge
+              const yShift = hoveredNode.yPercent < 15 ? "0" : (hoveredNode.yPercent > 85 ? "-100%" : "-50%");
+              const xShift = hoveredNode.xPercent > 65 ? "-100%" : "0";
+              const leftPos = hoveredNode.xPercent > 65
+                ? `calc(${hoveredNode.xPercent}% - 45px)`
+                : `calc(${hoveredNode.xPercent}% + 45px)`;
+              const topPos = `calc(${hoveredNode.yPercent}% + 20px)`;
+              return (
               <div
                 className="level-modal__tooltip"
                 style={{
-                  left:
-                    hoveredNode.xPercent > 65
-                      ? `calc(${hoveredNode.xPercent}% - 45px)`
-                      : `calc(${hoveredNode.xPercent}% + 45px)`,
-                  top: `calc(${hoveredNode.yPercent}% + 20px)`,
-                  transform: `translate(${hoveredNode.xPercent > 65 ? "-100%" : "0"}, ${
-                    hoveredNode.yPercent > 85 ? "-100%" : "-50%"
-                  })`,
+                  left: leftPos,
+                  top: topPos,
+                  transform: `translate(${xShift}, ${yShift})`,
                 }}
               >
                 <ul>
@@ -116,8 +119,15 @@ const LevelTreeModal = ({
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
+
+                {hoveredNode.name === "Level 5.NF+NP+G6" && (
+                  <div className="level-modal__tooltip-extras" role="note" aria-live="polite">
+                    Completing this level may lead to a counterexample — either the unit conjecture or the zero-divisor conjecture.
+                  </div>
+                )}
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>

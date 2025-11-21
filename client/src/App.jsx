@@ -6,7 +6,8 @@ import { checkAndGroupConnections } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
 import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
-import { appendHorizontalEdges, clearPatternLog, rebuildPatternLog } from "./utils/patternLog";
+import { appendHorizontalEdges, clearPatternLog } from "./utils/patternLog";
+import { makeInitialHistoryEntry, rebuildProcessedPairKeys, restorePatternLogFromSnapshot, fixColorsAfterUndo } from "./utils/historyUtils";
 import { noFoldPreflightWithPatternLog } from "./utils/noFold";
 import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
 import { levelsWithNoPattern } from "./utils/levels";
@@ -87,19 +88,7 @@ function App() {
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
 
-  const [history, setHistory] = useState([
-    {
-      connections: [],
-      connectionPairs: [],
-      connectionGroups: [],
-      topRowCount: 1,
-      bottomRowCount: 1,
-      edgeState: null,
-      groupMap: new Map(),
-      topOrientationMap: new Map(),
-      botOrientationMap: new Map(),
-    },
-  ]);
+  const [history, setHistory] = useState([makeInitialHistoryEntry()]);
   const [currentStep, setCurrentStep] = useState(0);
 
   // Maintain an append‑only log of connection actions.
@@ -152,6 +141,7 @@ function App() {
 
   // References for SVG elements and connection groups.
   const [showSettings, setShowSettings] = useState(false);
+  const iconRef = useRef(null);
   const [welcomeMessage, setWelcomeMessage] = useState(false);
   const [Percent100Message, setPercent100Message] = useState(false);
   const [noFoldModalData, setNoFoldModalData] = useState(null); // {code,message,violations}
@@ -159,6 +149,49 @@ function App() {
   const noFoldHighlightedElementsRef = useRef([]);
   const noFoldModalTimerRef = useRef(null);
   const noFoldViolationStateRef = useRef(null);
+
+  useEffect(() => {
+    // Close settings menu on outside click (use click bubbling to not preempt inputs)
+    if (!showSettings) return;
+    const handleOutsideClick = (e) => {
+      const menu = document.querySelector('.settings-menu');
+      const clickedInsideMenu = menu && menu.contains(e.target);
+      const clickedIcon = iconRef.current && iconRef.current.contains(e.target);
+      if (!clickedInsideMenu && !clickedIcon) {
+        setShowSettings(false);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [showSettings]);
+
+  // Position the settings menu directly under the icon, centered (with slight horizontal bias)
+  useEffect(() => {
+    if (!showSettings) return;
+    const positionMenu = () => {
+      const iconEl = iconRef.current;
+      const menuEl = document.querySelector('.settings-menu');
+      if (!iconEl || !menuEl) return;
+      const iconRect = iconEl.getBoundingClientRect();
+      const menuRect = menuEl.getBoundingClientRect();
+      const margin = 8;
+      // Horizontal bias shifts the menu slightly to the right relative to perfect centering.
+      const horizontalBias = 10; // pixels: move left edge right by ~10px as requested
+      let left = iconRect.left + iconRect.width / 2 - menuRect.width / 2 + horizontalBias;
+      left = Math.max(margin, Math.min(window.innerWidth - menuRect.width - margin, left));
+      const top = iconRect.bottom + margin;
+      // Apply directly to the menu element
+      menuEl.style.left = `${left}px`;
+      menuEl.style.top = `${top}px`;
+    };
+    positionMenu();
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, true);
+    return () => {
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
+    };
+  }, [showSettings]);
 
   useEffect(() => {
     noFoldViolationStateRef.current = noFoldViolationState;
@@ -176,6 +209,7 @@ function App() {
       groupMap: structuredClone(groupMapRef.current),
       topOrientationMap: structuredClone(topOrientation.current),
       botOrientationMap: structuredClone(botOrientation.current),
+      currentColorIndex: currentColor,
     };
 
     setHistory([...history, newState]);
@@ -195,6 +229,16 @@ function App() {
   // Updated handleUndo function with console logging.
   const handleUndo = useCallback(() => {
     if (currentStep > 0) {
+      // Prevent any pending auto-undo from firing after this manual undo
+      if (noFoldViolationStateRef.current?.shouldUndoAfterFlash) {
+        noFoldViolationStateRef.current = null;
+        setNoFoldViolationState(null);
+        setNoFoldModalData(null);
+        if (noFoldModalTimerRef.current) {
+          clearTimeout(noFoldModalTimerRef.current);
+          noFoldModalTimerRef.current = null;
+        }
+      }
       console.log("Before undo:");
       console.log("connections:", connections);
       console.log("connectionPairs:", connectionPairs);
@@ -210,34 +254,28 @@ function App() {
       console.log("topOrientation:", topOrientation.current);
       console.log("botOrientation:", botOrientation.current);
 
+      // Take the snapshot we saved before the last user action
       const previousState = history[currentStep];
 
-      const processedKeys = new Set();
-      previousState.connectionPairs.forEach((pair) => {
-        if (Array.isArray(pair) && pair.length === 2) {
-          const key = buildPairKey(pair);
-          if (key) {
-            processedKeys.add(key);
-          }
-        }
-      });
-      processedPairKeysRef.current = processedKeys;
+      // Normalize snapshot colors via helper before restoring
+      fixColorsAfterUndo(previousState);
+
+      processedPairKeysRef.current = rebuildProcessedPairKeys(previousState.connectionPairs, buildPairKey);
       
       // Rebuild pattern log from previous state
-      rebuildPatternLog(
-        patternLogRef.current,
-        previousState.connectionPairs,
-        { current: new Map(previousState.topOrientationMap) },
-        { current: new Map(previousState.botOrientationMap) }
-      );
+      restorePatternLogFromSnapshot(patternLogRef, previousState);
 
-      // Restore state variables.
-      setConnections(previousState.connections);
+  // Restore state variables.
+  setConnections(previousState.connections);
       setConnectionPairs(previousState.connectionPairs);
       setConnectionGroups(previousState.connectionGroups);
       setTopRowCount(previousState.topRowCount);
       setBottomRowCount(previousState.bottomRowCount);
       setEdgeState(previousState.edgeState);
+      // Restore current color index for future generated colors
+      if (typeof previousState.currentColorIndex === 'number') {
+        setCurrentColor(previousState.currentColorIndex);
+      }
 
       // Restore ref values.
       groupMapRef.current = new Map(previousState.groupMap);
@@ -553,7 +591,8 @@ function App() {
    */
   useEffect(() => {
     const handleResize = () => {
-      drawConnections(svgRef, connections, connectionPairs, offset);
+      // On resize, also pass orientation refs so arrows/horizontal edges are redrawn correctly
+      drawConnections(svgRef, connections, connectionPairs, offset, topOrientation, botOrientation);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -577,19 +616,40 @@ function App() {
   }, [isDraggingLine, currentLineEl]);
 
   useEffect(() => {
-    const handleMouseUp = () => {
+    const handleMouseUp = (e) => {
+      if (!isDraggingLine) return;
+      // If we're dragging (one node selected) and mouse up occurred on blank area (not a node)
+      // then cancel the selection.
+      const target = e.target;
+      // Treat it as a node click if the event target or any ancestor has an id starting with top- or bottom-
+      let isNode = false;
+      if (target && typeof target.closest === 'function') {
+        const nodeEl = target.closest("[id^='top-'], [id^='bottom-']");
+        isNode = !!nodeEl;
+      }
+      if (!isNode && selectedNodes.length === 1) {
+        // remove the temporary line
+        if (currentLineEl && svgRef.current.contains(currentLineEl)) {
+          svgRef.current.removeChild(currentLineEl);
+        }
+        setSelectedNodes([]);
+        setHighlightedNodes([]);
+        setIsDraggingLine(false);
+        setCurrentLineEl(null);
+        return;
+      }
+      // Existing fallback: mouse up without completing second node also cleans up line
       if (isDraggingLine && !selectedNodes[1]) {
         if (currentLineEl && svgRef.current.contains(currentLineEl)) {
           svgRef.current.removeChild(currentLineEl);
         }
         setIsDraggingLine(false);
-  // setStartNode(null);
         setCurrentLineEl(null);
       }
     };
     window.addEventListener("mouseup", handleMouseUp);
     return () => window.removeEventListener("mouseup", handleMouseUp);
-  }, [isDraggingLine, currentLineEl, selectedNodes]);
+  }, [isDraggingLine, currentLineEl, selectedNodes, svgRef]);
 
   useEffect(() => {
     return () => {
@@ -794,19 +854,7 @@ function App() {
     botOrientation.current.clear();
     processedPairKeysRef.current = new Set();
     clearPatternLog(patternLogRef.current);    // Reset history and clear the connection log.
-    setHistory([
-      {
-        connections: [],
-        connectionPairs: [],
-        connectionGroups: [],
-        topRowCount: 1,
-        bottomRowCount: 1,
-        edgeState: null,
-        groupMap: new Map(),
-        topOrientationMap: new Map(),
-        botOrientationMap: new Map(),
-      },
-    ]);
+    setHistory([makeInitialHistoryEntry()]);
     setCurrentStep(0);
     connectionLogRef.current = [];
   };
@@ -877,7 +925,7 @@ function App() {
     if (edgeState) {
       // Preflight noFold using patternLog before committing the second edge
       newColor = edgeState.color;
-      const candidateConnection = { nodes: [node1, node2], color: newColor };
+      const candidateConnection = { nodes: [node1, node2], color: newColor, seedColor: edgeState.seedColor ?? newColor };
       const candidatePair = [edgeState, candidateConnection];
 
       const preflight = noFoldPreflightWithPatternLog(candidatePair, {
@@ -938,7 +986,7 @@ function App() {
       printFullConnectionLog();
     } else {
       newColor = generateColor(currentColor, setCurrentColor, connectionPairs);
-      const newConnection = { nodes: [node1, node2], color: newColor };
+      const newConnection = { nodes: [node1, node2], color: newColor, seedColor: newColor };
       // Save current state before updating the first edge of a pair
       saveToHistory();
       setConnections([...connections, newConnection]);
@@ -965,6 +1013,7 @@ function App() {
       <ProgressBar
         progress={progress}
         connections={connections}
+        connectionGroups={connectionGroups}
         topRowCount={topRowCount}
         bottomRowCount={bottomRowCount}
         lightMode={lightMode}
@@ -978,6 +1027,7 @@ function App() {
         <div className="welcome-message fade-message">You did it! 100%!</div>
       )}
       <img
+        ref={iconRef}
         src={SettingIconImage}
         alt="Settings Icon"
         className="icon"

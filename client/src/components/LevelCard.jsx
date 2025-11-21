@@ -31,6 +31,21 @@ function LevelCard({ level, onClick, onHover, isSelected }) {
     >
       <div className="level-card__content">
         <h3 className="level-card__name">{name}</h3>
+        {/* Special crown icon for Level 5.NF+NP+G6 (tooltip moved to LevelTreeModal) */}
+        {name === "Level 5.NF+NP+G6" && (
+          <div className="level-card__warning" aria-hidden={!unlocked}>
+            <svg
+              className="level-card__warning-icon"
+              viewBox="0 0 24 24"
+              role="img"
+              aria-label="Special note for this level"
+            >
+              {/* Minimal golden crown */}
+              <path d="M3 16l2-8 5 5 4-5 5 5 2-8 0 11H3z" />
+              <rect x="3" y="18" width="18" height="2" rx="1" />
+            </svg>
+          </div>
+        )}
       </div>
       {!unlocked && <div className="level-card__lock-overlay" aria-hidden="true" />}
     </div>

@@ -114,16 +114,19 @@ body {
 .level-icon__caption {
   padding: 4px 10px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #000000;
+  /* Dark-mode default: white text on black background */
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffffff;
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(43, 43, 43, 0.6);
 }
 
 .light-mode .level-icon__caption {
+  border: 1px solid rgba(255, 255, 255, 0.6);
   background: rgba(248, 248, 251, 0.9);
   color: #000000;
 }

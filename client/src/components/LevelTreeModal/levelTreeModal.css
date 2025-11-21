@@ -71,7 +71,8 @@
   height: 504px;
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(255, 120, 120, 0.28) 0%, rgba(107, 230, 163, 0.24) 100%);
-  overflow: hidden;
+  /* Allow nodes/tooltips close to the edges to remain visible */
+  overflow: visible;
   padding: 14px;
   box-sizing: border-box;
 }
@@ -131,6 +132,21 @@
   background: rgba(255, 255, 255, 0.95);
   color: #1c1c1c;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Extra note appended for special levels (same width, attached below) */
+.level-modal__tooltip-extras {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: #ffd764; /* subtle golden accent for the special note */
+}
+
+.light-mode .level-modal__tooltip-extras {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  color: #937a10; /* darker gold for light background */
 }
 
 @media (max-width: 768px) {

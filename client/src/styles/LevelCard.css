@@ -10,6 +10,7 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
+  position: relative; /* allow absolutely positioned icon/tooltip */
 }
 
 .level-card.unlocked:hover,
@@ -42,6 +43,27 @@
   font-weight: 600;
   margin: 0;
 }
+
+/* Warning icon and tooltip for special levels */
+.level-card__warning {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.level-card__warning-icon {
+  width: 18px;   /* slightly larger for bolder presence */
+  height: 18px;
+  fill: #d4af37; /* minimal golden */
+  stroke: #b08d2f; /* deeper gold stroke for bold look */
+  stroke-width: 1.2;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+}
+
+/* The crown no longer has its own tooltip; explanation lives in the LevelTree modal tooltip */
 
 .level-card__lock-overlay {
   position: absolute;
