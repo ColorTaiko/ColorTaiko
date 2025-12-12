@@ -1,10 +1,7 @@
-// TODO: make popup saying that it is stuck, continue + stop
-// TODO: backtrack and choose 
+// TODO: fix no fold being ignored
 
 // try bound of 21 by 21 on last level
 // remove music on different branch
-
-// if not greedy, backtracking?
 
 import { useState, useRef, useEffect, useCallback } from "react";
 
@@ -21,7 +18,6 @@ import { makeInitialHistoryEntry, rebuildProcessedPairKeys, restorePatternLogFro
 import { noFoldPreflightWithPatternLog } from "./utils/noFold";
 import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
 import { levelsWithNoPattern } from "./utils/levels";
-// import { checkOrientation } from "./utils/checkOrientation";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -494,7 +490,7 @@ function App() {
           printFullConnectionLog();
         }
       }
-    }, 400);
+    }, 1000);
 
     setRandomizingTimer(timer);
   };
