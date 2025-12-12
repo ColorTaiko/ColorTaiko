@@ -1595,6 +1595,8 @@ function App() {
           onMaxTopChange={handleMaxTopChangeFromMenu}
           maxBottom={displayMaxBottom}
           onMaxBottomChange={handleMaxBottomChangeFromMenu}
+          isRandomizing={isRandomizing}
+          onRandomizeToggle={handleRandomize}
           randomMethod={randomMethod}
           onRandomMethodChange={setRandomMethod}
         />
@@ -1642,9 +1644,6 @@ function App() {
           </div>
         </div>
       )}
-      <button onClick={handleRandomize} className="randomize-button">
-        {isRandomizing ? 'Stop Generating' : 'Random Taiko'}
-      </button>
       <ErrorModal
         className="error-container"
         message={errorMessage}

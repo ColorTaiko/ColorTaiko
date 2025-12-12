@@ -16,6 +16,8 @@ const SettingsMenu = ({
   onMaxBottomChange,
   randomMethod,
   onRandomMethodChange,
+  isRandomizing,
+  onRandomizeToggle,
 }) => {
   const handleRandomMethodChange = (e) => {
     if (onRandomMethodChange) onRandomMethodChange(e.target.value);
@@ -95,6 +97,11 @@ const SettingsMenu = ({
           />
         </label>
         </div>
+        <div style={{ marginTop: '12px' }}>
+          <button onClick={onRandomizeToggle} style={{ padding: '8px 12px', cursor: 'pointer' }}>
+            {isRandomizing ? 'Stop Generating' : 'Random Taiko'}
+          </button>
+        </div>
         <div style={{ marginTop: "10px" }}>
           <label style={{ display: 'block', marginBottom: '8px' }}>
             Randomization Method:
@@ -135,6 +142,8 @@ SettingsMenu.propTypes = {
   onMaxBottomChange: PropTypes.func.isRequired,
   randomMethod: PropTypes.string,
   onRandomMethodChange: PropTypes.func,
+  isRandomizing: PropTypes.bool,
+  onRandomizeToggle: PropTypes.func,
 };
 
 export default SettingsMenu;
