@@ -159,6 +159,19 @@ function App() {
     setMaxBottomNodes,
   } = useSettings();
 
+
+  const handleMaxTopChangeFromMenu = (v) => {
+    if (typeof v !== 'number' || Number.isNaN(v)) return;
+    const stored = Math.max(2, Math.floor(v) + 1);
+    setMaxTopNodes(stored);
+  };
+
+  const handleMaxBottomChangeFromMenu = (v) => {
+    if (typeof v !== 'number' || Number.isNaN(v)) return;
+    const stored = Math.max(2, Math.floor(v) + 1);
+    setMaxBottomNodes(stored);
+  };
+
   // References for SVG elements and connection groups.
   const [showSettings, setShowSettings] = useState(false);
   const iconRef = useRef(null);
@@ -799,6 +812,9 @@ function App() {
       setLevel("Level 1");
     }
   }, []);
+
+  const displayMaxTop = Math.max(1, (maxTopNodes ?? 2) - 1);
+  const displayMaxBottom = Math.max(1, (maxBottomNodes ?? 2) - 1);
 
   /**
    * Draws connections on the SVG element when related state changes.
@@ -1566,7 +1582,7 @@ function App() {
         )}
       </div>
       {showSettings && (
-        <SettingsMenu
+          <SettingsMenu
           offset={offset}
           onOffsetChange={handleOffsetChange}
           soundbool={soundBool}
@@ -1575,10 +1591,10 @@ function App() {
           onToggleBlackDotEffect={toggleBlackDotEffect}
           lightMode={lightMode}
           onToggleLightMode={toggleLightMode}
-          maxTop={maxTopNodes}
-          onMaxTopChange={setMaxTopNodes}
-          maxBottom={maxBottomNodes}
-          onMaxBottomChange={setMaxBottomNodes}
+          maxTop={displayMaxTop}
+          onMaxTopChange={handleMaxTopChangeFromMenu}
+          maxBottom={displayMaxBottom}
+          onMaxBottomChange={handleMaxBottomChangeFromMenu}
           randomMethod={randomMethod}
           onRandomMethodChange={setRandomMethod}
         />
