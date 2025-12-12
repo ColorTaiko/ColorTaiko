@@ -116,6 +116,11 @@ function assertNoPatternFromAdj(horiEdges) {
 export function noPatternFromPatternLog(patternLog, options = {}) {
   try {
     const { groupMapRef = null } = options;
+    // Quick guard: no-pattern requires at least three horizontal edges to form a trio.
+    const topCount = Array.isArray(patternLog?.topSequence) ? patternLog.topSequence.length : 0;
+    const bottomCount = Array.isArray(patternLog?.bottomSequence) ? patternLog.bottomSequence.length : 0;
+    if (topCount + bottomCount < 3) return { ok: true };
+
     const adj = buildAdjacencyFromPatternLog(patternLog, groupMapRef);
     assertNoPatternFromAdj(adj);
     return { ok: true };

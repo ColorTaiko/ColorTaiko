@@ -120,4 +120,3 @@ export const checkOrientation = (
         return 0;
     }
 };
-

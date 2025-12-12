@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 import { generateColor } from "./utils/colorUtils";
+import { getPreviewColor } from "./utils/colorUtils";
 import { drawConnections } from "./utils/drawingUtils";
-import { checkAndGroupConnections } from "./utils/MergeUtils";
+import { checkAndGroupConnections, predictPairFinalColor } from "./utils/MergeUtils";
 import { calculateProgress } from "./utils/calculateProgress";
+import { calculateScore } from "./utils/calculateScore";
 import { checkAndAddNewNodes } from "./utils/checkAndAddNewNodes";
 import { getConnectedNodes } from "./utils/getConnectedNodes";
 import { appendHorizontalEdges, clearPatternLog } from "./utils/patternLog";
@@ -11,7 +13,6 @@ import { makeInitialHistoryEntry, rebuildProcessedPairKeys, restorePatternLogFro
 import { noFoldPreflightWithPatternLog } from "./utils/noFold";
 import { noPatternPreflightWithPatternLog } from "./utils/noPattern";
 import { levelsWithNoPattern } from "./utils/levels";
-// import { checkOrientation } from "./utils/checkOrientation";
 
 import SettingIconImage from "./assets/setting-icon.png";
 
@@ -76,12 +77,27 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const svgRef = useRef(null);
   const groupMapRef = useRef(new Map());
+  const connectionsRef = useRef(connections);
+  const connectionPairsRef = useRef(connectionPairs);
+  const connectionGroupsRef = useRef(connectionGroups);
+  const topRowCountRef = useRef(topRowCount);
+  const bottomRowCountRef = useRef(bottomRowCount);
+  const edgeStateRef = useRef(edgeState);
+  const currentColorRef = useRef(currentColor);
+  const levelRef = useRef("level");
   const previousProgressRef = useRef(progress);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
+  const [flashingNodes, setFlashingNodes] = useState([]);
+  const [endpointStatusMap, setEndpointStatusMap] = useState({}); // id -> { status: 'valid'|'invalid', reason?: string }
   const topOrientation = useRef(new Map());
   const botOrientation = useRef(new Map());
+  const maxTopRef = useRef(null);
+  const maxBottomRef = useRef(null);
 
   const [isDraggingLine, setIsDraggingLine] = useState(false);
+  const [isRandomizing, setIsRandomizing] = useState(false);
+  const [randomizingTimer, setRandomizingTimer] = useState(null);
+  const randomizingTimerRef = useRef(null);
   const [currentLineEl, setCurrentLineEl] = useState(null);
   const [level, setLevel] = useState(null);
 
@@ -137,12 +153,38 @@ function App() {
     setBlackDotEffect,
     lightMode,
     setLightMode,
+    maxTopNodes,
+    setMaxTopNodes,
+    maxBottomNodes,
+    setMaxBottomNodes,
   } = useSettings();
+
+
+  const handleMaxTopChangeFromMenu = (v) => {
+    if (typeof v !== 'number' || Number.isNaN(v)) return;
+    const stored = Math.max(2, Math.floor(v) + 1);
+    setMaxTopNodes(stored);
+  };
+
+  const handleMaxBottomChangeFromMenu = (v) => {
+    if (typeof v !== 'number' || Number.isNaN(v)) return;
+    const stored = Math.max(2, Math.floor(v) + 1);
+    setMaxBottomNodes(stored);
+  };
 
   // References for SVG elements and connection groups.
   const [showSettings, setShowSettings] = useState(false);
   const iconRef = useRef(null);
+  const [randomMethod, setRandomMethod] = useState("greedy");
   const [welcomeMessage, setWelcomeMessage] = useState(false);
+  // keep a ref to the selected randomization method for interval closures
+  const randomMethodRef = useRef(randomMethod);
+  useEffect(() => {
+    randomMethodRef.current = randomMethod;
+  }, [randomMethod]);
+
+  // stack used by greedy-backtrack to store remaining alternative candidates per depth
+  const greedyStackRef = useRef([]);
   const [Percent100Message, setPercent100Message] = useState(false);
   const [noFoldModalData, setNoFoldModalData] = useState(null); // {code,message,violations}
   const [noFoldViolationState, setNoFoldViolationState] = useState(null); // {highlights,shouldUndoAfterFlash,code}
@@ -218,6 +260,23 @@ function App() {
     setCurrentStep(currentStep + 1);
   };
 
+  const saveToHistoryNow = () => {
+    const newState = {
+      connections: structuredClone(connectionsRef.current),
+      connectionPairs: structuredClone(connectionPairsRef.current),
+      connectionGroups: structuredClone(connectionGroupsRef.current),
+      topRowCount: topRowCountRef.current,
+      bottomRowCount: bottomRowCountRef.current,
+      edgeState: edgeStateRef.current,
+      groupMap: structuredClone(groupMapRef.current),
+      topOrientationMap: structuredClone(topOrientation.current),
+      botOrientationMap: structuredClone(botOrientation.current),
+    };
+
+    setHistory((h) => [...h, newState]);
+    setCurrentStep((s) => s + 1);
+  };
+
   // Helper to print the full connection log.
   const printFullConnectionLog = useCallback(() => {
     const fullLog = connectionLogRef.current
@@ -227,6 +286,251 @@ function App() {
       .join(", ");
     console.log(`Updated connection order: ${fullLog}`);
   }, []);
+
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
+  useEffect(() => {
+    connectionPairsRef.current = connectionPairs;
+  }, [connectionPairs]);
+  useEffect(() => {
+    connectionGroupsRef.current = connectionGroups;
+  }, [connectionGroups]);
+  useEffect(() => {
+    topRowCountRef.current = topRowCount;
+  }, [topRowCount]);
+  useEffect(() => {
+    bottomRowCountRef.current = bottomRowCount;
+  }, [bottomRowCount]);
+  useEffect(() => {
+    edgeStateRef.current = edgeState;
+  }, [edgeState]);
+  useEffect(() => {
+    currentColorRef.current = currentColor;
+  }, [currentColor]);
+  useEffect(() => {
+    levelRef.current = level;
+  }, [level]);
+
+  // Begin timeout events for randomize
+  const startRandomize = () => {
+    // reset any previous greedy stack
+    greedyStackRef.current = [];
+    const buildCandidates = () => {
+      const candidates = [];
+      const tCount = topRowCountRef.current;
+      const bCount = bottomRowCountRef.current;
+      if (tCount <= 0 || bCount <= 0) return candidates;
+
+      for (let topIdx = 0; topIdx < tCount; topIdx++) {
+        for (let botIdx = 0; botIdx < bCount; botIdx++) {
+          const topId = `top-${topIdx}`;
+          const botId = `bottom-${botIdx}`;
+
+          const alreadyConnected = connectionsRef.current.some(
+            (c) => c.nodes.includes(topId) && c.nodes.includes(botId)
+          );
+          if (alreadyConnected) continue;
+
+          const pending = edgeStateRef.current;
+
+          if (pending) {
+            if (pending.nodes.includes(topId) || pending.nodes.includes(botId)) continue;
+
+            const newConnection = { nodes: [topId, botId], color: pending.color };
+            const candidatePair = [pending, newConnection];
+
+            const topCloneForCheck = { current: new Map(topOrientation.current || []) };
+            const botCloneForCheck = { current: new Map(botOrientation.current || []) };
+            const groupMapCloneForCheck = { current: new Map(groupMapRef.current || []) };
+            const validation = runLevelChecks(levelRef.current, candidatePair, {
+              groupMapRef: groupMapCloneForCheck,
+              topOrientation: topCloneForCheck,
+              botOrientation: botCloneForCheck,
+              connections: connectionsRef.current,
+              connectionPairs: connectionPairsRef.current,
+              topRowCount: topRowCountRef.current,
+              bottomRowCount: bottomRowCountRef.current,
+              patternLog: patternLogRef.current,
+            }, setFlashingNodes);
+
+            if (!validation.ok) continue;
+
+            const simulatedConnections = [...connectionsRef.current, newConnection];
+            const prevPairs = connectionPairsRef.current;
+            const lastPair = prevPairs[prevPairs.length - 1];
+            const simulatedPairs = lastPair && lastPair.length === 1
+              ? [...prevPairs.slice(0, -1), [...lastPair, newConnection]]
+              : [...prevPairs, [pending, newConnection]];
+
+            let simulatedTopCount = topRowCountRef.current;
+            let simulatedBottomCount = bottomRowCountRef.current;
+            for (const conn of simulatedConnections) {
+              const [node1, node2] = conn.nodes;
+              const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+              simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+            }
+
+            const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+            const maxTop = maxTopRef.current ?? maxTopNodes;
+            const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+            if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+              candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'pair' });
+            }
+          } else {
+            const newColor = generateColor(currentColorRef.current, setCurrentColor, connectionPairsRef.current);
+            const newConnection = { nodes: [topId, botId], color: newColor };
+
+            const simulatedConnections = [...connectionsRef.current, newConnection];
+            const simulatedPairs = [...connectionPairsRef.current, [newConnection]];
+
+            let simulatedTopCount = topRowCountRef.current;
+            let simulatedBottomCount = bottomRowCountRef.current;
+            for (const conn of simulatedConnections) {
+              const [node1, node2] = conn.nodes;
+              const topIndex = parseInt(node1.startsWith('top-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              const bottomIndex = parseInt(node1.startsWith('bottom-') ? node1.split('-')[1] : node2.split('-')[1], 10);
+              simulatedTopCount = Math.max(simulatedTopCount, topIndex + 2);
+              simulatedBottomCount = Math.max(simulatedBottomCount, bottomIndex + 2);
+            }
+
+            const score = calculateScore(simulatedConnections, simulatedTopCount, simulatedBottomCount);
+            const maxTop = maxTopRef.current ?? maxTopNodes;
+            const maxBottom = maxBottomRef.current ?? maxBottomNodes;
+            if (!(simulatedTopCount > maxTop || simulatedBottomCount > maxBottom)) {
+              candidates.push({ score, newConnection, simulatedConnections, simulatedPairs, type: 'single' });
+            }
+          }
+        }
+      }
+
+      return candidates;
+    };
+
+    const timer = setInterval(() => {
+      const method = randomMethodRef.current;
+
+      if (method === 'greedy-backtrack') {
+        let candidates = buildCandidates();
+        candidates.sort((a, b) => b.score - a.score);
+
+        if (candidates.length > 0) {
+          const best = candidates[0];
+          // push remaining alternatives for this depth onto stack
+          const remaining = candidates.slice(1);
+          greedyStackRef.current.push(remaining);
+
+          // commit best
+          saveToHistoryNow();
+          setConnections(best.simulatedConnections);
+          setConnectionPairs(best.simulatedPairs);
+          if (best.type === 'single') {
+            setEdgeState(best.newConnection);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          } else {
+            setEdgeState(null);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          }
+          printFullConnectionLog();
+        } else {
+          // backtrack until we find an alternative or exhaust the stack
+          let success = false;
+          while (greedyStackRef.current.length > 0 && !success) {
+            const remaining = greedyStackRef.current.pop();
+            // revert last committed move
+            try {
+              handleUndo();
+            } catch (e) {
+              console.warn('Backtrack undo failed', e);
+            }
+
+            if (!remaining || remaining.length === 0) continue;
+
+            // pick a random alternative from remaining
+            const idx = Math.floor(Math.random() * remaining.length);
+            const alt = remaining.splice(idx, 1)[0];
+            // if there are still alternatives left at this depth, push them back
+            if (remaining.length > 0) greedyStackRef.current.push(remaining);
+
+            // commit the alternative
+            saveToHistoryNow();
+            setConnections(alt.simulatedConnections);
+            setConnectionPairs(alt.simulatedPairs);
+            if (alt.type === 'single') {
+              setEdgeState(alt.newConnection);
+              connectionLogRef.current.push({ type: 'connect', conn: `${alt.newConnection.nodes[0]} -> ${alt.newConnection.nodes[1]}` });
+            } else {
+              setEdgeState(null);
+              connectionLogRef.current.push({ type: 'connect', conn: `${alt.newConnection.nodes[0]} -> ${alt.newConnection.nodes[1]}` });
+            }
+            printFullConnectionLog();
+            // push a placeholder for the new depth
+            greedyStackRef.current.push([]);
+            success = true;
+          }
+
+          if (!success) {
+            stopRandomize();
+            setErrorMessage("Randomizer is stuck: no remaining alternatives.");
+          }
+        }
+      } else {
+        // default deterministic exhaustive behavior
+        const candidates = buildCandidates();
+        candidates.sort((a, b) => b.score - a.score);
+
+        if (candidates.length > 0) {
+          const best = candidates[0];
+          console.log(best);
+
+          // commit the best candidate atomically
+          saveToHistoryNow();
+          setConnections(best.simulatedConnections);
+          setConnectionPairs(best.simulatedPairs);
+          if (best.type === 'single') {
+            setEdgeState(best.newConnection);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          } else {
+            setEdgeState(null);
+            connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
+          }
+          printFullConnectionLog();
+        } else {
+          stopRandomize();
+          setErrorMessage("Randomizer is stuck: no valid candidate pairs found.");
+        }
+      }
+    }, 1000);
+
+    setRandomizingTimer(timer);
+    randomizingTimerRef.current = timer;
+  };
+
+  const stopRandomize = () => {
+    const timer = randomizingTimerRef.current ?? randomizingTimer;
+    if (timer) {
+      try {
+        clearInterval(timer);
+      } catch (e) {}
+    }
+    randomizingTimerRef.current = null;
+    setRandomizingTimer(null);
+    setIsRandomizing(false);
+    // clear greedy backtrack stack when stopping
+    greedyStackRef.current = [];
+  };
+
+  const handleRandomize = () => {
+    if (isRandomizing) {
+      stopRandomize();
+    } else {
+      startRandomize();
+    }
+
+    setIsRandomizing(!isRandomizing);
+  };
 
   // Updated handleUndo function with console logging.
   const handleUndo = useCallback(() => {
@@ -370,7 +674,11 @@ function App() {
         setNoFoldModalData(null);
         setNoFoldViolationState(null);
         setErrorMessage(message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'));
-        if (shouldAutoUndo) {
+        if (shouldAutoUndo && isRandomizing) {
+          // If we're auto-undoing during randomize, immediately undo & stop randomize
+          try {
+            stopRandomize();
+          } catch (e) {}
           handleUndo();
         }
         return;
@@ -396,15 +704,24 @@ function App() {
         });
       });
 
+      // If we should auto-undo, undo immediately to remove the invalid edge from
+      // the UI so subsequent randomization steps do not build on an invalid base.
+      if (shouldAutoUndo && isRandomizing) {
+        try {
+          stopRandomize();
+        } catch (e) {}
+        handleUndo();
+      }
+
       setNoFoldViolationState({
         highlights,
-        shouldUndoAfterFlash: shouldAutoUndo,
+        shouldUndoAfterFlash: false, // we've already undone the invalid commit
         message: message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'),
         violations,
         code: code || 'NO_FOLD'
       });
     },
-    [clearNoFoldEffects, handleUndo]
+    [clearNoFoldEffects, handleUndo, isRandomizing, stopRandomize]
   );
 
   const handleNoFoldModalClose = useCallback(() => {
@@ -495,6 +812,9 @@ function App() {
       setLevel("Level 1");
     }
   }, []);
+
+  const displayMaxTop = Math.max(1, (maxTopNodes ?? 2) - 1);
+  const displayMaxBottom = Math.max(1, (maxBottomNodes ?? 2) - 1);
 
   /**
    * Draws connections on the SVG element when related state changes.
@@ -613,9 +933,20 @@ function App() {
       bottomRowCount,
       connections,
       setTopRowCount,
-      setBottomRowCount
+      setBottomRowCount,
+      maxTopNodes,
+      maxBottomNodes
     );
   }, [connections, topRowCount, bottomRowCount]);
+
+  // keep refs of maxes for interval closure
+  useEffect(() => {
+    maxTopRef.current = maxTopNodes;
+  }, [maxTopNodes]);
+
+  useEffect(() => {
+    maxBottomRef.current = maxBottomNodes;
+  }, [maxBottomNodes]);
 
   /**
    * Calculates progress as a percentage based on completed connections.
@@ -631,6 +962,8 @@ function App() {
 
       if (newProgress === 100) {
         setPercent100Message(true);
+        // stop randomization when board is complete
+        stopRandomize();
         if (soundBool) {
           perfectAudio.play();
         }
@@ -666,11 +999,104 @@ function App() {
         const mouseY = e.clientY - svgRect.top;
         currentLineEl.setAttribute("x2", mouseX);
         currentLineEl.setAttribute("y2", mouseY);
+
+        const defaultColor = "grey";
+
+        /* try to predict the final color accounting for potential folds/merges. */
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        
+        if (el && el.id && typeof el.id === "string") {
+          const hoveredId = el.id;
+          if (edgeState && (hoveredId.startsWith("top-") || hoveredId.startsWith("bottom-"))) {
+
+            const startNode = selectedNodes[0];
+
+            if (startNode) {
+              const isTopStart = startNode.startsWith("top");
+              const node1 = isTopStart ? startNode : hoveredId;
+              const node2 = isTopStart ? hoveredId : startNode;
+
+              if ((isTopStart && hoveredId.startsWith("bottom-")) || (!isTopStart && hoveredId.startsWith("top-"))) {
+                const simulatedSecond = { nodes: [node1, node2], color: edgeState.color };
+                const predicted = predictPairFinalColor([edgeState, simulatedSecond], groupMapRef.current);
+                if (predicted) {
+                  currentLineEl.setAttribute("stroke", predicted);
+                } else {
+                  currentLineEl.setAttribute("stroke", edgeState.color || defaultColor);
+                }
+              }
+            }
+          }
+        }
       }
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [isDraggingLine, currentLineEl]);
+
+  // Compute endpoint validity border
+  useEffect(() => {
+    const map = {};
+    if (selectedNodes.length === 1) {
+      const startNode = selectedNodes[0];
+      const isTopStart = startNode.startsWith("top");
+      const tCount = topRowCountRef.current;
+      const bCount = bottomRowCountRef.current;
+
+      const checkCandidate = (candidateId) => {
+        if (!candidateId || candidateId === startNode) return { status: 'invalid', reason: 'Same node' };
+
+        const isTopCand = candidateId.startsWith("top");
+        if ((isTopStart && isTopCand) || (!isTopStart && !isTopCand)) return { status: 'invalid', reason: 'Cannot connect nodes in the same row' };
+
+        const dup = connectionsRef.current.some(
+          (c) => c.nodes.includes(startNode) && c.nodes.includes(candidateId)
+        );
+        if (dup) return { status: 'invalid', reason: 'These vertices are already connected' };
+
+        const pending = edgeStateRef.current;
+        if (pending) {
+          if (pending.nodes.includes(startNode) || pending.nodes.includes(candidateId)) return { status: 'invalid', reason: 'Pending edge shares a vertex' };
+
+          const newConn = { nodes: [startNode, candidateId], color: pending.color };
+
+          const topCloneForHover = { current: new Map(topOrientation.current || []) };
+          const botCloneForHover = { current: new Map(botOrientation.current || []) };
+          const groupMapCloneForHover = { current: new Map(groupMapRef.current || []) };
+          const validation = runLevelChecks(levelRef.current, [pending, newConn], {
+            groupMapRef: groupMapCloneForHover,
+            topOrientation: topCloneForHover,
+            botOrientation: botCloneForHover,
+            connections: connectionsRef.current,
+            connectionPairs: connectionPairsRef.current,
+            topRowCount: topRowCountRef.current,
+            bottomRowCount: bottomRowCountRef.current,
+            patternLog: patternLogRef.current,
+          }, () => {});
+          if (validation && validation.ok) return { status: 'valid' };
+
+          const reason = validation && validation.message ? validation.message : 'Rule check failed';
+          return { status: 'invalid', reason };
+        }
+
+        return { status: 'valid' };
+      };
+
+      if (isTopStart) {
+        for (let i = 0; i < bCount; i++) {
+          const id = `bottom-${i}`;
+          map[id] = checkCandidate(id);
+        }
+      } else {
+        for (let i = 0; i < tCount; i++) {
+          const id = `top-${i}`;
+          map[id] = checkCandidate(id);
+        }
+      }
+    }
+
+    setEndpointStatusMap(map);
+  }, [selectedNodes, connections, connectionPairs, edgeState, topRowCount, bottomRowCount]);
 
   useEffect(() => {
     const handleMouseUp = (e) => {
@@ -709,6 +1135,10 @@ function App() {
   }, [isDraggingLine, currentLineEl, selectedNodes, svgRef]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setFlashingNodes([]);
+    }, 8000);
+
     return () => {
       clearNoFoldEffects({ skipUndo: true });
     };
@@ -732,7 +1162,7 @@ function App() {
           topRowCount,
           bottomRowCount,
           patternLog: patternLogRef.current,
-        });
+        }, setFlashingNodes, false);
         if (!validation.ok) {
           setSelectedNodes([]);
           setHighlightedNodes([]);
@@ -799,35 +1229,43 @@ function App() {
 
   const createTopRow = (count) =>
     Array.from({ length: count }, (_, i) => (
-      <TaikoNode
+        <TaikoNode
         key={`top-${i}`}
         id={`top-${i}`}
         onClick={() => handleNodeClick(`top-${i}`)}
         isSelected={selectedNodes.includes(`top-${i}`)}
+        endpointStatus={endpointStatusMap[`top-${i}`]?.status}
+        endpointReason={endpointStatusMap[`top-${i}`]?.reason}
         index={i}
         totalCount={topRowCount}
         isFaded={count > 1 && i === count - 1}
+        showLimitX={maxTopNodes && count === maxTopNodes && i === count - 1}
         position="top"
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
         isHighlighted={highlightedNodes.includes(`top-${i}`)}
+        isFlashing={flashingNodes.includes(`top-${i}`)}
       />
     ));
 
   const createBottomRow = (count) =>
     Array.from({ length: count }, (_, i) => (
-      <TaikoNode
+        <TaikoNode
         key={`bottom-${i}`}
         id={`bottom-${i}`}
         onClick={() => handleNodeClick(`bottom-${i}`)}
         isSelected={selectedNodes.includes(`bottom-${i}`)}
+        endpointStatus={endpointStatusMap[`bottom-${i}`]?.status}
+        endpointReason={endpointStatusMap[`bottom-${i}`]?.reason}
         index={i}
         totalCount={bottomRowCount}
         isFaded={count > 1 && i === count - 1}
+        showLimitX={maxBottomNodes && count === maxBottomNodes && i === count - 1}
         position="bottom"
         blackDotEffect={blackDotEffect}
         lightMode={lightMode}
         isHighlighted={highlightedNodes.includes(`bottom-${i}`)}
+        isFlashing={flashingNodes.includes(`bottom-${i}`)}
       />
     ));
 
@@ -876,8 +1314,10 @@ function App() {
       line.setAttribute("y1", startY);
       line.setAttribute("x2", startX);
       line.setAttribute("y2", startY);
-      line.setAttribute("stroke", "gray");
-      line.setAttribute("stroke-width", "2");
+
+  const initialPreview = edgeState ? edgeState.color : getPreviewColor(connectionPairs);
+  line.setAttribute("stroke", initialPreview || "gray");
+      line.setAttribute("stroke-width", "4");
       line.setAttribute("stroke-dasharray", "5,5");
 
       svgRef.current.appendChild(line);
@@ -1142,7 +1582,7 @@ function App() {
         )}
       </div>
       {showSettings && (
-        <SettingsMenu
+          <SettingsMenu
           offset={offset}
           onOffsetChange={handleOffsetChange}
           soundbool={soundBool}
@@ -1151,6 +1591,14 @@ function App() {
           onToggleBlackDotEffect={toggleBlackDotEffect}
           lightMode={lightMode}
           onToggleLightMode={toggleLightMode}
+          maxTop={displayMaxTop}
+          onMaxTopChange={handleMaxTopChangeFromMenu}
+          maxBottom={displayMaxBottom}
+          onMaxBottomChange={handleMaxBottomChangeFromMenu}
+          isRandomizing={isRandomizing}
+          onRandomizeToggle={handleRandomize}
+          randomMethod={randomMethod}
+          onRandomMethodChange={setRandomMethod}
         />
       )}
       <button 

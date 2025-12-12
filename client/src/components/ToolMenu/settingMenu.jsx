@@ -10,10 +10,31 @@ const SettingsMenu = ({
   onToggleBlackDotEffect,
   lightMode,
   onToggleLightMode,
+  maxTop,
+  onMaxTopChange,
+  maxBottom,
+  onMaxBottomChange,
+  randomMethod,
+  onRandomMethodChange,
+  isRandomizing,
+  onRandomizeToggle,
 }) => {
+  const handleRandomMethodChange = (e) => {
+    if (onRandomMethodChange) onRandomMethodChange(e.target.value);
+  };
   const handleOffsetInput = (e) => {
     const newOffset = parseInt(e.target.value, 10);
     onOffsetChange(newOffset);
+  };
+
+  const handleMaxTopInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!Number.isNaN(v)) onMaxTopChange(v);
+  };
+
+  const handleMaxBottomInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!Number.isNaN(v)) onMaxBottomChange(v);
   };
 
   return (
@@ -30,28 +51,77 @@ const SettingsMenu = ({
           step="1"
         />
       </label>
-      <div className="settings-toggle-row">
-        <span>Sound</span>
-        <span style={{ fontWeight: 600 }}>{soundbool ? "ON" : "OFF"}</span>
-        <input type="checkbox" checked={soundbool} onChange={onSoundControl} />
-      </div>
-      <div className="settings-toggle-row">
-        <span>Black Dot</span>
-        <span style={{ fontWeight: 600 }}>{blackDotEffect ? "ON" : "OFF"}</span>
+      <label style={{ marginTop: '10px', display: 'block' }}>
+        Max Top Nodes (m):
         <input
-          type="checkbox"
-          checked={blackDotEffect}
-          onChange={onToggleBlackDotEffect}
+          type="number"
+          value={maxTop}
+          onChange={handleMaxTopInput}
+          min="1"
+          max="50"
+          style={{ marginLeft: '10px', width: '70px' }}
         />
-      </div>
-      <div className="settings-toggle-row">
-        <span>Light Mode</span>
-        <span style={{ fontWeight: 600 }}>{lightMode ? "ON" : "OFF"}</span>
+      </label>
+      <label style={{ marginTop: '10px', display: 'block' }}>
+        Max Bottom Nodes (n):
         <input
-          type="checkbox"
-          checked={lightMode}
-          onChange={onToggleLightMode}
+          type="number"
+          value={maxBottom}
+          onChange={handleMaxBottomInput}
+          min="1"
+          max="50"
+          style={{ marginLeft: '10px', width: '70px' }}
         />
+      </label>
+      <div style={{ marginTop: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          Sound Control:
+          <span>{soundbool ? "ON" : "OFF"}</span>
+          <input
+            type="checkbox"
+            checked={soundbool}
+            onChange={onSoundControl}
+            style={{ transform: "scale(1.5)" }}
+          />
+        </label>
+      </div>
+      <div style={{ marginTop: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          Black Dot Effect:
+          <span>{blackDotEffect ? "ON" : "OFF"}</span>
+          <input
+            type="checkbox"
+            checked={blackDotEffect}
+            onChange={onToggleBlackDotEffect}
+            style={{ transform: "scale(1.5)" }}
+          />
+        </label>
+        </div>
+        <div style={{ marginTop: '12px' }}>
+          <button onClick={onRandomizeToggle} style={{ padding: '8px 12px', cursor: 'pointer' }}>
+            {isRandomizing ? 'Stop Generating' : 'Random Taiko'}
+          </button>
+        </div>
+        <div style={{ marginTop: "10px" }}>
+          <label style={{ display: 'block', marginBottom: '8px' }}>
+            Randomization Method:
+          </label>
+          <select value={randomMethod} onChange={handleRandomMethodChange} style={{ width: '100%', padding: '6px' }}>
+            <option value="greedy">Greedy</option>
+            <option value="greedy-backtrack">Greedy Backtrack</option>
+          </select>
+        </div>
+        <div style={{ marginTop: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          Light Mode:
+          <span>{lightMode ? "ON" : "OFF"}</span>
+          <input
+            type="checkbox"
+            checked={lightMode}
+            onChange={onToggleLightMode}
+            style={{ transform: "scale(1.5)" }}
+          />
+        </label>
       </div>
     </div>
   );
@@ -66,6 +136,14 @@ SettingsMenu.propTypes = {
   onToggleBlackDotEffect: PropTypes.func.isRequired,
   lightMode: PropTypes.bool.isRequired,
   onToggleLightMode: PropTypes.func.isRequired,
+  maxTop: PropTypes.number.isRequired,
+  onMaxTopChange: PropTypes.func.isRequired,
+  maxBottom: PropTypes.number.isRequired,
+  onMaxBottomChange: PropTypes.func.isRequired,
+  randomMethod: PropTypes.string,
+  onRandomMethodChange: PropTypes.func,
+  isRandomizing: PropTypes.bool,
+  onRandomizeToggle: PropTypes.func,
 };
 
 export default SettingsMenu;

@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { useState, useEffect } from 'react';
 import './taikoNode.css';
 
-const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted}) => {
+const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, position, blackDotEffect, lightMode, isHighlighted, isFlashing, endpointStatus, endpointReason, showLimitX }) => {
   const [entering, setEntering] = useState(true);
 
   useEffect(() => {
@@ -21,15 +21,23 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
     else {
       setBackgroundColor("white")
     }
-    //console.log(backgroundColor)
   }, [lightMode])
 
-  const classNames = `taiko-node ${entering ? 'taiko-node-enter' : ''}${isSelected ? ' selected' : ''}`;
+  const classNames = `${isFlashing ? 'flash' : ''} taiko-node ${entering ? 'taiko-node-enter' : ''}${isSelected ? ' selected' : ''}`;
+
+  // endpointStatus: 'valid' | 'invalid' | undefined
+  const borderStyle = endpointStatus === 'valid' ? '4px solid #2ecc71' : endpointStatus === 'invalid' ? '4px solid #e74c3c' : undefined;
+
+  const [showTooltip, setShowTooltip] = useState(false);
 
   return (
     <div
       id={id}
       onClick={onClick}
+      onMouseEnter={() => {
+        if (endpointStatus === 'invalid') setShowTooltip(true);
+      }}
+      onMouseLeave={() => setShowTooltip(false)}
       className={classNames}
       style={{
         backgroundColor: isSelected
@@ -42,6 +50,7 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
         opacity: isSelected ? 1 : isFaded ? 0.5 : 1,
         width: `${nodeSize}px`,
         height: `${nodeSize}px`,
+        border: borderStyle,
       }}
     >
       {position === "top" && (
@@ -57,6 +66,16 @@ const TaikoNode = ({ id, onClick, isSelected, index, totalCount, isFaded, positi
       )}
 
       {blackDotEffect && !isSelected && <div className="black-dot"></div>}
+      {showLimitX && (
+        <div style={{ position: 'absolute', right: -4, top: -4, width: 20, height: 20, borderRadius: 10, background: '#e74c3c', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }} aria-hidden>
+          ×
+        </div>
+      )}
+      {showTooltip && endpointStatus === 'invalid' && endpointReason && (
+        <div className="endpoint-tooltip" role="tooltip">
+          {endpointReason}
+        </div>
+      )}
     </div>
   );
 };
@@ -72,5 +91,8 @@ TaikoNode.propTypes = {
   blackDotEffect: PropTypes.bool.isRequired,
   lightMode: PropTypes.bool.isRequired,
   isHighlighted: PropTypes.bool.isRequired,
+  endpointStatus: PropTypes.oneOf(["valid", "invalid"]),
+  endpointReason: PropTypes.string,
+  showLimitX: PropTypes.bool,
 };
 export default TaikoNode;

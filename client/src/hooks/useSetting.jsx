@@ -16,6 +16,16 @@ export function useSettings() {
     return savedDotEffectState ? JSON.parse(savedDotEffectState) : false;
   });
 
+  const [maxTopNodes, setMaxTopNodes] = useState(() => {
+    const saved = localStorage.getItem("maxTopNodes");
+    return saved !== null ? parseInt(saved, 10) : 10;
+  });
+
+  const [maxBottomNodes, setMaxBottomNodes] = useState(() => {
+    const saved = localStorage.getItem("maxBottomNodes");
+    return saved !== null ? parseInt(saved, 10) : 10;
+  });
+
   const [lightMode, setLightMode] = useState(() => {
     const savedLightMode = localStorage.getItem("lightMode");
     return savedLightMode ? JSON.parse(savedLightMode) : true;
@@ -30,8 +40,29 @@ export function useSettings() {
   }, [blackDotEffect]);
 
   useEffect(() => {
+    localStorage.setItem("maxTopNodes", maxTopNodes);
+  }, [maxTopNodes]);
+
+  useEffect(() => {
+    localStorage.setItem("maxBottomNodes", maxBottomNodes);
+  }, [maxBottomNodes]);
+
+  useEffect(() => {
     localStorage.setItem("lightMode", JSON.stringify(lightMode));
   }, [lightMode]);
 
-  return { offset, setOffset, soundBool, setSoundBool, blackDotEffect, setBlackDotEffect, lightMode, setLightMode };
+  return {
+    offset,
+    setOffset,
+    soundBool,
+    setSoundBool,
+    blackDotEffect,
+    setBlackDotEffect,
+    lightMode,
+    setLightMode,
+    maxTopNodes,
+    setMaxTopNodes,
+    maxBottomNodes,
+    setMaxBottomNodes,
+  };
 }
