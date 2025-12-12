@@ -1,8 +1,3 @@
-// TODO: fix no fold being ignored
-
-// try bound of 21 by 21 on last level
-// remove music on different branch
-
 import { useState, useRef, useEffect, useCallback } from "react";
 
 import { generateColor } from "./utils/colorUtils";
@@ -102,6 +97,7 @@ function App() {
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomizingTimer, setRandomizingTimer] = useState(null);
+  const randomizingTimerRef = useRef(null);
   const [currentLineEl, setCurrentLineEl] = useState(null);
   const [level, setLevel] = useState(null);
 
@@ -457,14 +453,14 @@ function App() {
               connectionLogRef.current.push({ type: 'connect', conn: `${alt.newConnection.nodes[0]} -> ${alt.newConnection.nodes[1]}` });
             }
             printFullConnectionLog();
-            // push a placeholder for the new depth (we'll collect its alternatives when we reach it)
+            // push a placeholder for the new depth
             greedyStackRef.current.push([]);
             success = true;
           }
 
           if (!success) {
-            // nothing left to try
             stopRandomize();
+            setErrorMessage("Randomizer is stuck: no remaining alternatives.");
           }
         }
       } else {
@@ -488,19 +484,27 @@ function App() {
             connectionLogRef.current.push({ type: 'connect', conn: `${best.newConnection.nodes[0]} -> ${best.newConnection.nodes[1]}` });
           }
           printFullConnectionLog();
+        } else {
+          stopRandomize();
+          setErrorMessage("Randomizer is stuck: no valid candidate pairs found.");
         }
       }
     }, 1000);
 
     setRandomizingTimer(timer);
+    randomizingTimerRef.current = timer;
   };
 
   const stopRandomize = () => {
-    if (randomizingTimer) {
-      clearInterval(randomizingTimer);
-      setIsRandomizing(false);
+    const timer = randomizingTimerRef.current ?? randomizingTimer;
+    if (timer) {
+      try {
+        clearInterval(timer);
+      } catch (e) {}
     }
+    randomizingTimerRef.current = null;
     setRandomizingTimer(null);
+    setIsRandomizing(false);
     // clear greedy backtrack stack when stopping
     greedyStackRef.current = [];
   };
@@ -657,7 +661,11 @@ function App() {
         setNoFoldModalData(null);
         setNoFoldViolationState(null);
         setErrorMessage(message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'));
-        if (shouldAutoUndo) {
+        if (shouldAutoUndo && isRandomizing) {
+          // If we're auto-undoing during randomize, immediately undo & stop randomize
+          try {
+            stopRandomize();
+          } catch (e) {}
           handleUndo();
         }
         return;
@@ -683,15 +691,24 @@ function App() {
         });
       });
 
+      // If we should auto-undo, undo immediately to remove the invalid edge from
+      // the UI so subsequent randomization steps do not build on an invalid base.
+      if (shouldAutoUndo && isRandomizing) {
+        try {
+          stopRandomize();
+        } catch (e) {}
+        handleUndo();
+      }
+
       setNoFoldViolationState({
         highlights,
-        shouldUndoAfterFlash: shouldAutoUndo,
+        shouldUndoAfterFlash: false, // we've already undone the invalid commit
         message: message || (code === 'ORIENTATION' ? 'Orientation condition failed!' : 'No-Fold condition failed!'),
         violations,
         code: code || 'NO_FOLD'
       });
     },
-    [clearNoFoldEffects, handleUndo]
+    [clearNoFoldEffects, handleUndo, isRandomizing, stopRandomize]
   );
 
   const handleNoFoldModalClose = useCallback(() => {
@@ -929,7 +946,8 @@ function App() {
 
       if (newProgress === 100) {
         setPercent100Message(true);
-        clearInterval(randomizingTimer);
+        // stop randomization when board is complete
+        stopRandomize();
         if (soundBool) {
           perfectAudio.play();
         }
